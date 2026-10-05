@@ -1,6 +1,4 @@
--- 08_queries.sql                                            OWNER: Lane C (Data & Queries)
--- The queries the app is built around. Read-only, safe to re-run.
--- Change the usernames / titles / vibes in the WHERE clauses to try different cases.
+-- Demo queries for Project Kickoff, Sprint 1
 
 USE media_tracker;
 
@@ -12,8 +10,7 @@ JOIN media m    ON m.media_id = ht.media_id
 WHERE t.name = 'melancholy'
 ORDER BY m.media_type, m.title;
 
--- 2) "BECAUSE YOU PICKED X": media of a DIFFERENT type that share its vibe tags,
---    ranked by how many tags they share.
+-- 2) "BECAUSE YOU PICKED X": media of a DIFFERENT type that share its vibe tags, ranked by how many tags they share.
 SELECT m2.title, m2.media_type, COUNT(*) AS shared_tags
 FROM media picked
 JOIN has_tag a ON a.media_id = picked.media_id
@@ -23,8 +20,7 @@ WHERE picked.title = 'The Secret History'
 GROUP BY m2.media_id, m2.title, m2.media_type
 ORDER BY shared_tags DESC, m2.title;
 
--- 3) FROM VIEWING HISTORY: untracked media that matches the vibes of everything
---    the user has already finished.
+-- 3) FROM VIEWING HISTORY: untracked media that matches the vibes of everything the user has already finished.
 SELECT m.title, m.media_type, COUNT(*) AS matching_tags
 FROM users u
 JOIN tracks t   ON t.user_id = u.user_id AND t.media_status = 'finished'

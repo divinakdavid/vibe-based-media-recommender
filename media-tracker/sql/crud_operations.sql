@@ -1,19 +1,16 @@
--- 06_crud_operations.sql                                    OWNER: Lane B (Rules & Operations)
--- Basic INSERT / UPDATE / DELETE for EVERY table.
--- Wrapped in a transaction that ROLLS BACK at the end, so you can re-run it as often as you
--- like without changing the seed data. To keep the changes, change ROLLBACK to COMMIT.
--- Rows are looked up by natural keys (username, title, tag name) instead of hard-coded ids.
+-- Basic INSERT / UPDATE / DELETE for EVERY table
+-- Run after seed_data.sql
+-- Does not change seed data since rollbacks all changes at the end
 
 USE media_tracker;
 
--- MySQL Workbench blocks UPDATE/DELETE whose WHERE doesn't use a key column (error 1175).
--- Turn that off for this session; it is turned back on at the bottom.
+-- For MySQL Workbench - to query and update without WHERE clauses (for demo only)
 SET SQL_SAFE_UPDATES = 0;
 
 START TRANSACTION;
 
 -- =====================================================================
--- PART 1: INSERT  (parents first, then link tables)
+-- PART 1: INSERT
 -- =====================================================================
 
 -- users
@@ -22,7 +19,7 @@ INSERT INTO users (username, email, password_hash) VALUES
     ('demo_friend', 'friend@example.com', '$2b$12$demohashdemohashfrien');
 SELECT user_id, username FROM users WHERE username LIKE 'demo\_%';
 
--- user_groups (Creates: creator_id = demo_user)
+-- user_groups
 INSERT INTO user_groups (group_name, creator_id)
 SELECT 'Demo Group', user_id FROM users WHERE username = 'demo_user';
 SELECT group_id, group_name, creator_id FROM user_groups WHERE group_name = 'Demo Group';
@@ -33,15 +30,14 @@ SELECT g.group_id, u.user_id
 FROM user_groups g, users u
 WHERE g.group_name = 'Demo Group' AND u.username = 'demo_user';
 
--- friends: demo_user follows demo_friend
+-- friends
 INSERT INTO friends (follower_id, followed_id)
 SELECT a.user_id, b.user_id
 FROM users a, users b
 WHERE a.username = 'demo_user' AND b.username = 'demo_friend';
 
--- media + one child row each.
--- MySQL has no RETURNING, so LAST_INSERT_ID() gives the media_id we just created.
--- Do NOT list media_type in the child INSERT, MySQL fills it in.
+-- media
+-- inserting one of every media type for demo
 INSERT INTO media (title, release_year, summary, media_type)
 VALUES ('Demo Book', 2020, 'A demo book.', 'book');
 INSERT INTO books (media_id, author, isbn, page_count)
@@ -107,22 +103,13 @@ WHERE u.username = 'demo_user' AND m.title = 'Demo Book';
 -- PART 2: UPDATE
 -- =====================================================================
 
-UPDATE users SET email = 'demo.updated@example.com' WHERE username = 'demo_user';
-
-UPDATE user_groups SET group_name = 'Demo Group (renamed)' WHERE group_name = 'Demo Group';
-
--- member_of only has key columns, so "update" means moving a member to another group
-UPDATE member_of
-SET group_id = (SELECT group_id FROM user_groups WHERE group_name = 'Spooky Season Club')
-WHERE user_id  = (SELECT user_id  FROM users       WHERE username   = 'demo_user')
-  AND group_id = (SELECT group_id FROM user_groups WHERE group_name = 'Demo Group (renamed)');
-
 -- friends: re-point demo_user's follow from demo_friend to muskan
 UPDATE friends
 SET followed_id = (SELECT user_id FROM users WHERE username = 'muskan')
 WHERE follower_id = (SELECT user_id FROM users WHERE username = 'demo_user')
   AND followed_id = (SELECT user_id FROM users WHERE username = 'demo_friend');
 
+-- media: update some media items
 UPDATE media SET summary = 'An updated demo summary.' WHERE title = 'Demo Book';
 UPDATE media SET release_year = 2018 WHERE title = 'Demo Podcast';
 
@@ -132,31 +119,35 @@ UPDATE movies   SET duration_minutes = 125      WHERE media_id = (SELECT media_i
 UPDATE podcasts SET episode_count = 30          WHERE media_id = (SELECT media_id FROM media WHERE title = 'Demo Podcast');
 UPDATE songs    SET duration_minutes = 4.25     WHERE media_id = (SELECT media_id FROM media WHERE title = 'Demo Song');
 
+-- tag: rename a tag
 UPDATE tag SET name = 'demo_vibe_renamed' WHERE name = 'demo_vibe';
 
--- has_tag: swap the demo tag for 'cozy' on Demo Book
+-- has_tag: swap a tag for another on a media item
 UPDATE has_tag
 SET tag_id = (SELECT tag_id FROM tag WHERE name = 'cozy')
 WHERE media_id = (SELECT media_id FROM media WHERE title = 'Demo Book')
   AND tag_id   = (SELECT tag_id   FROM tag   WHERE name  = 'demo_vibe_renamed');
 
--- recommends: group now recommends Demo Movie instead of Demo Book
+-- recommends: swap the recommended media for another on a group
 UPDATE recommends
 SET media_id = (SELECT media_id FROM media WHERE title = 'Demo Movie')
 WHERE group_id = (SELECT group_id FROM user_groups WHERE group_name = 'Demo Group (renamed)')
   AND media_id = (SELECT media_id FROM media WHERE title = 'Demo Book');
 
+-- reviews: update the review text for a media item
 UPDATE reviews
 SET user_review = 'Edited: still a great demo book.'
 WHERE user_id  = (SELECT user_id  FROM users WHERE username = 'demo_user')
   AND media_id = (SELECT media_id FROM media WHERE title = 'Demo Book');
 
+-- review_tags: swap a tag for another on a review
 UPDATE review_tags
 SET tag_id = (SELECT tag_id FROM tag WHERE name = 'cozy')
 WHERE user_id  = (SELECT user_id  FROM users WHERE username = 'demo_user')
   AND media_id = (SELECT media_id FROM media WHERE title = 'Demo Book')
   AND tag_id   = (SELECT tag_id   FROM tag   WHERE name  = 'demo_vibe_renamed');
 
+-- tracks: update the media_status for a media item to finished
 UPDATE tracks
 SET media_status = 'finished'
 WHERE user_id  = (SELECT user_id  FROM users WHERE username = 'demo_user')
@@ -202,13 +193,13 @@ WHERE follower_id = (SELECT user_id FROM users WHERE username = 'demo_user');
 DELETE FROM member_of
 WHERE user_id = (SELECT user_id FROM users WHERE username = 'demo_user');
 
--- Must delete the group before its creator (creator_id is ON DELETE RESTRICT)
+-- Cannot delete a group if the creater is not deleted
 DELETE FROM user_groups WHERE group_name = 'Demo Group (renamed)';
 
 DELETE FROM users WHERE username IN ('demo_user', 'demo_friend');
 
--- Everything above was practice. Undo it all:
+-- Undo all changes
 ROLLBACK;
--- Change ROLLBACK to COMMIT if you want the changes to stick.
 
+-- Reset back to safe updates mode
 SET SQL_SAFE_UPDATES = 1;

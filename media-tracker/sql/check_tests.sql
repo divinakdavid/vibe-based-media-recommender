@@ -1,9 +1,5 @@
--- 07_check_tests.sql                                        OWNER: Lane B (Rules & Operations)
--- Proves every rule in 04_checks.sql (plus two foreign-key rules) actually rejects bad data.
--- Each test tries to insert/delete ONE bad thing. If MySQL rejects it, the test PASSES.
--- Everything runs inside a transaction that is rolled back, so no data is changed.
--- Run after 05_seed_data.sql. Works in the mysql client and MySQL Workbench.
--- RULE: when you add a CHECK to 04_checks.sql, add a test for it here.
+-- Proves every rule in checks.sql actually rejects bad data
+-- Does not change seed data since rollbacks all changes at the end
 --
 -- MySQL error codes used below:
 --   3819 = a CHECK constraint was violated
@@ -15,7 +11,6 @@ USE media_tracker;
 DROP PROCEDURE IF EXISTS run_check_tests;
 DROP TEMPORARY TABLE IF EXISTS check_test_results;
 
--- MEMORY engine is not transactional, so results survive the ROLLBACK at the end.
 CREATE TEMPORARY TABLE check_test_results (
     test_no          INT AUTO_INCREMENT PRIMARY KEY,
     constraint_name  VARCHAR(70),
@@ -28,7 +23,7 @@ CREATE PROCEDURE run_check_tests()
 BEGIN
     START TRANSACTION;
 
-    -- ---------- users ----------
+    ------------ users ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_email (no @)', 'PASS');
@@ -64,7 +59,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_password_hash_len', 'FAIL');
     END;
 
-    -- ---------- friends ----------
+    ------------ friends ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_no_self_follow', 'PASS');
@@ -73,7 +68,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_no_self_follow', 'FAIL');
     END;
 
-    -- ---------- user_groups ----------
+    ------------ user_groups ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_group_name_not_blank', 'PASS');
@@ -89,7 +84,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('creator_id ON DELETE RESTRICT', 'FAIL');
     END;
 
-    -- ---------- media ----------
+    ------------ media ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_title_not_blank', 'PASS');
@@ -111,7 +106,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_media_type', 'FAIL');
     END;
 
-    -- ---------- media children (valid media row first, then a bad child row) ----------
+    ------------ media children (valid media row first, then a bad child row) ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_page_count', 'PASS');
@@ -168,7 +163,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_song_duration', 'FAIL');
     END;
 
-    -- ---------- a movie must not be insertable into books (composite foreign key, error 1452) ----------
+    ------------ a movie must not be insertable into books (composite foreign key, error 1452) ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 1452
             INSERT INTO check_test_results (constraint_name, result) VALUES ('fk_child_matches_media_type', 'PASS');
@@ -177,7 +172,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('fk_child_matches_media_type', 'FAIL');
     END;
 
-    -- ---------- tag ----------
+    ------------ tag ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_tag_lowercase', 'PASS');
@@ -185,7 +180,7 @@ BEGIN
         INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_tag_lowercase', 'FAIL');
     END;
 
-    -- ---------- reviews / tracks ----------
+    ------------ reviews / tracks ----------
     BEGIN
         DECLARE EXIT HANDLER FOR 3819
             INSERT INTO check_test_results (constraint_name, result) VALUES ('chk_review_not_blank', 'PASS');
@@ -211,7 +206,7 @@ DELIMITER ;
 
 CALL run_check_tests();
 
--- One row per test: PASS = bad data was rejected, FAIL = bad data got in (fix the constraint!)
+-- One row per test: PASS = bad data was rejected, FAIL = bad data got in
 SELECT test_no, constraint_name, result FROM check_test_results ORDER BY test_no;
 
 SELECT SUM(result = 'PASS') AS passed, SUM(result = 'FAIL') AS failed, COUNT(*) AS total
