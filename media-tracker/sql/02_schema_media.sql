@@ -1,4 +1,4 @@
--- 02_schema_media.sql                                       OWNER: Lane A (Schema)
+-- 02_schema_media.sql                                      
 -- Tables about MEDIA: media (parent), its ISA children, tag, has_tag.
 
 USE media_tracker;
@@ -6,7 +6,7 @@ USE media_tracker;
 -- ---------------------------------------------------------------------
 -- MEDIA (parent)
 -- UNIQUE (media_id, media_type) lets each child table prove it matches the
--- parent's media_type (see the composite foreign keys below).
+-- parent's media_type (see the foreign keys below).
 -- ---------------------------------------------------------------------
 CREATE TABLE media (
     media_id      INT          AUTO_INCREMENT PRIMARY KEY,
@@ -31,7 +31,7 @@ CREATE TABLE books (
     media_id    INT PRIMARY KEY,
     media_type  VARCHAR(10) AS ('book') STORED NOT NULL,
     author      VARCHAR(255) NOT NULL,
-    isbn        VARCHAR(13)  UNIQUE,              -- candidate key, not the PK. Digits only, no hyphens.
+    isbn        VARCHAR(13)  UNIQUE,              
     page_count  INT,
     FOREIGN KEY (media_id, media_type) REFERENCES media(media_id, media_type) ON DELETE CASCADE
 );
