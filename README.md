@@ -1,4 +1,4 @@
-# Media Tracker: a vibe-based media recommender database
+# A Vibe-Based Media Recommender Database
 
 A MySQL database for finding books, TV shows, movies, podcasts and songs by **vibe**. Users tag media
 with vibes such as *cozy* or *melancholy*, track and review what they consume, follow friends and
