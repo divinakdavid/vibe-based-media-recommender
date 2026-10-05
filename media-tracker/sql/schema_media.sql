@@ -49,7 +49,7 @@ CREATE TABLE movies (
     media_id          INT PRIMARY KEY,
     media_type        VARCHAR(10) AS ('movie') STORED NOT NULL,
     director          VARCHAR(255),
-    duration_minutes  INT,
+    duration_minutes  DECIMAL(5,2),               -- decimal minutes: 3.50 = 3 min 30 sec (NOT 3:50)
     FOREIGN KEY (media_id, media_type) REFERENCES media(media_id, media_type) ON DELETE CASCADE
 );
 
