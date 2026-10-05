@@ -1,4 +1,4 @@
--- 05_seed_data.sql                                          OWNER: Lane C (Data & Queries)
+-- 05_seed_data.sql                                         
 -- Sample data so every table has rows to query.
 -- IMPORTANT: ids come from AUTO_INCREMENT, and this script assumes a fresh schema
 -- (00_drop_all -> 01 -> 02 -> 03 -> 04 first) so ids start at 1.

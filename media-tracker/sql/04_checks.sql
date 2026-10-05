@@ -1,8 +1,6 @@
--- 04_checks.sql                                             OWNER: Lane B (Rules & Operations)
+-- 04_checks.sql                                             
 -- Every CHECK constraint, added with ALTER TABLE so they are easy to find and review.
 -- Constraint names must be unique across the whole MySQL database, hence the chk_ prefix.
--- Violations raise MySQL error 3819: "Check constraint '...' is violated."
--- Requires MySQL 8.0.16+. Run after the three schema files.
 --
 -- NULL values pass a CHECK (e.g. a missing release_year is allowed). Use NOT NULL in the
 -- schema if a column must always be filled in.

@@ -1,4 +1,4 @@
--- 03_schema_activity.sql                                    OWNER: Lane A (Schema)
+-- 03_schema_activity.sql                                    
 -- Tables about what USERS DO WITH MEDIA: tracks, reviews, review_tags, recommends.
 -- Needs users, user_groups (file 01) and media, tag (file 02) to exist first.
 
@@ -19,7 +19,6 @@ CREATE TABLE tracks (
 -- ---------------------------------------------------------------------
 -- REVIEWS  (Users M:N Media, with user_review)
 -- REVIEW_TAGS: review_tags was multivalued on the ERD, so it gets its own
--- table to stay in BCNF. It reuses the same tag list as media.
 -- ---------------------------------------------------------------------
 CREATE TABLE reviews (
     user_id      INT,
