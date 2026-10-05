@@ -1,6 +1,6 @@
--- 00_setup.sql                                              OWNER: Lane A (Schema)
+-- 00_setup.sql                                             
 -- Creates the database and selects it. Safe to re-run.
--- Requires MySQL 8.0.16+ (older versions parse CHECK constraints but silently ignore them).
+-- Requires MySQL 8.0.16+ (older versions parse CHECK constraints but ignores them).
 
 CREATE DATABASE IF NOT EXISTS media_tracker
     CHARACTER SET utf8mb4
