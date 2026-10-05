@@ -1,4 +1,4 @@
--- 00_drop_all.sql                                           OWNER: Lane A (Schema)
+-- 00_drop_all.sql                                           
 -- Drops every table so the database can be rebuilt from scratch. Safe to re-run.
 -- WARNING: this deletes all data in these tables.
 
