@@ -18,7 +18,9 @@ media-tracker/
 ├── .github/
 │   └── pull_request_template.md   <- checklist shown on every pull request
 ├── docs/
-│   └── erd/erd_full.png           <- the final ERD (core + ISA hierarchy)
+│   ├── erd/erd_full.png           <- the final ERD (core + ISA hierarchy)
+│   └── normalisation.md           <- FDs, keys and BCNF check for all 16 tables
+├── data/                          <- CSV files read by load_csv.sql
 └── sql/
     ├── run_all.sql                <- rebuilds everything in the right order
     │
@@ -36,7 +38,9 @@ media-tracker/
     │
     │   ── LANE C: Data & Queries ──────────────────────────────────
     ├── 05_seed_data.sql           <- sample users, media, tags, reviews, ...
-    └── 08_queries.sql             <- pick-a-vibe + recommendation queries
+    ├── 08_queries.sql             <- pick-a-vibe + recommendation queries
+    ├── load_csv.sql               <- LOAD DATA LOCAL INFILE from ../data/*.csv
+    └── alter_table.sql            <- ALTER TABLE demo: add a column, fill it, remove it
 ```
 
 The number is the **run order**: tables must exist before checks are added, and checks must exist
@@ -67,6 +71,17 @@ then `06`, `07`, `08` whenever you want. Every script starts with `USE media_tra
 | `06_crud_operations` | **Yes**, it rolls back and changes nothing |
 | `07_check_tests` | **Yes**, it rolls back and changes nothing |
 | `08_queries` | **Yes**, read-only |
+| `alter_table` | **Yes**, it removes the column it adds |
+| `load_csv` | **Yes**, rows already loaded are skipped. It **keeps** its data (media ids 101+) |
+
+**Loading the CSV files.** `LOAD DATA LOCAL INFILE` is off by default at both ends:
+```bash
+cd sql
+mysql --local-infile=1 -u root -p
+mysql> SET GLOBAL local_infile = 1;
+mysql> SOURCE load_csv.sql;
+```
+Run it after the seed data. Workbench instructions are at the top of `load_csv.sql`.
 
 ---
 
@@ -88,7 +103,7 @@ possibly a query (08). Open the pull request and tag the lane owners. The PR tem
 1. `main` always runs cleanly with `run_all.sql`. Nobody pushes straight to it.
 2. One branch per task: `schema/add-ratings`, `checks/review-length`, `data/more-podcasts`.
 3. Open a pull request. A teammate pulls the branch and runs `SOURCE run_all.sql;` on a **fresh** database before approving.
-4. Don't write patch/ALTER scripts for schema changes. Edit the `CREATE TABLE` in `01`-`03` and rebuild.
+4. Don't write patch/ALTER scripts for schema changes. Edit the `CREATE TABLE` in `01`-`03` and rebuild. (`alter_table.sql` is a demo that undoes itself, not a patch.)
 5. Commit messages: short and specific, e.g. `Add CHECK: release_year between 1400 and 2100`.
 
 **Conventions**
@@ -103,7 +118,7 @@ possibly a query (08). Open the pull request and tag the lane owners. The PR tem
 - **Many-to-many** relationships (friends, member_of, has_tag, tracks, reviews, recommends) are link tables with composite primary keys.
 - **Creates (many-to-one)** is the `user_groups.creator_id` column. It is `ON DELETE RESTRICT`: a user who still owns a group can't be deleted. Reassign the group first (`UPDATE user_groups SET creator_id = ...`) or delete the group. Ownership is never transferred automatically.
 - **ISA hierarchy:** each child (`books`, `movies`, ...) uses `media_id` as PK and FK to `media`. Its generated `media_type` column plus a composite foreign key means a movie can't be inserted into `books`. **Never insert `media_type` into a child table.**
-- **`review_tags`** is its own table because a review can have many tags.
+- **`review_tags`** is its own table because a review can have many tags. This is a BCNF decomposition; the full working is in `docs/normalisation.md`.
 - **`password_hash`** holds a bcrypt/argon2 hash, never the plain password (seed values are fake placeholders).
 - **`user_groups`** instead of `groups`, because `GROUPS` is a reserved word in MySQL 8.
 - **Song length** is decimal minutes: `3.50` means 3 min 30 sec, not 3:50.

@@ -17,3 +17,5 @@ SOURCE seed_data.sql;
 -- SOURCE crud_operations.sql;
 -- SOURCE check_tests.sql;
 -- SOURCE queries.sql;
+-- SOURCE alter_table.sql;
+-- SOURCE load_csv.sql;        -- needs mysql --local-infile=1 (see the top of that file)
