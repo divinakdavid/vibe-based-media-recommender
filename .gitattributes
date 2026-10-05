@@ -1,0 +1,2 @@
+# Keep CSV files on Unix line endings so LOAD DATA reads them correctly on every OS
+*.csv text eol=lf
