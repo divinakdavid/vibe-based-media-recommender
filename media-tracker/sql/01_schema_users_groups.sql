@@ -1,4 +1,4 @@
--- 01_schema_users_groups.sql                                OWNER: Lane A (Schema)
+-- 01_schema_users_groups.sql                                
 -- Tables about PEOPLE: users, friends, user_groups, member_of.
 -- (Constraints like NOT NULL / UNIQUE / PK / FK live here. CHECKs live in 04_checks.sql.)
 
@@ -11,7 +11,7 @@ CREATE TABLE users (
     user_id        INT          AUTO_INCREMENT PRIMARY KEY,
     username       VARCHAR(50)  NOT NULL UNIQUE,
     email          VARCHAR(255) NOT NULL UNIQUE,
-    password_hash  VARCHAR(255) NOT NULL          -- store a bcrypt/argon2 hash, never the plain password
+    password_hash  VARCHAR(255) NOT NULL          -- stores the hash, never the plain password
 );
 
 -- ---------------------------------------------------------------------
