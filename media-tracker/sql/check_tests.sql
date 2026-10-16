@@ -1,31 +1,21 @@
--- check_tests.sql
--- Proves that each CHECK constraint (and the foreign keys) rejects bad data.
--- Every INSERT/DELETE marked "Expect: ERROR ..." is SUPPOSED to fail. If MySQL accepts one,
--- that constraint is not working.
---
--- Run it after seed_data.sql. A failing statement stops the mysql client unless you use --force:
---     mysql --force -t -u root -p < check_tests.sql          (command line, from this folder)
--- In MySQL Workbench, run the statements one at a time and expect a red error on each test.
---
--- Error codes:  3819 = CHECK constraint violated
---               1451 = cannot delete a row that other rows still point to
---               1452 = cannot insert a row that points to a missing parent row
---
--- The test rows use ids 901 and up and are deleted again at the end.
+
 
 USE media_tracker;
 
 -- ---------------------------------------------------------------------
--- SETUP: valid media rows (no child rows yet) for the child-table tests below
+-- SETUP: valid media rows for the child-table tests below
+-- (901-902 will be books, 903 a TV show, 904 a podcast, 905 a movie, 906 a song)
 -- ---------------------------------------------------------------------
-INSERT INTO media (media_id, title, release_year, summary, media_type) VALUES
-    (901, 'Test Book A',   2020, 'x', 'book'),
-    (902, 'Test Book B',   2020, 'x', 'book'),
-    (903, 'Test Show A',   2020, 'x', 'tv_show'),
-    (904, 'Test Show B',   2020, 'x', 'tv_show'),
-    (905, 'Test Movie',    2020, 'x', 'movie'),
-    (906, 'Test Podcast',  2020, 'x', 'podcast'),
-    (907, 'Test Song',     2020, 'x', 'song');
+INSERT INTO media (media_id, title, release_year, summary) VALUES
+    (901, 'Test Book A',   2020, 'x'),
+    (902, 'Test Book B',   2020, 'x'),
+    (903, 'Test Show',     2020, 'x'),
+    (904, 'Test Podcast',  2020, 'x'),
+    (905, 'Test Movie',    2020, 'x'),
+    (906, 'Test Song',     2020, 'x');
+
+INSERT INTO tv_shows (media_id, director) VALUES (903, 'D');
+INSERT INTO podcasts (media_id)           VALUES (904);
 
 -- ---------------------------------------------------------------------
 -- users
@@ -53,7 +43,7 @@ VALUES ('test_d', 'weakpw@example.com', 'hash1');
 -- ---------------------------------------------------------------------
 -- friends and groups
 -- ---------------------------------------------------------------------
--- TEST 6: chk_no_self_follow, user 1 follows user 1.     Expect: ERROR 3819
+-- TEST 6: trg_no_self_follow_insert, user 1 follows user 1.   Expect: ERROR 1644
 INSERT INTO friends (follower_id, followed_id)
 VALUES (1, 1);
 
@@ -65,82 +55,109 @@ VALUES ('   ', 1);
 INSERT INTO user_groups (group_name, creator_id)
 VALUES ('Ghost Group', 999);
 
--- TEST 9: foreign key, delete grace (user 3) while she still owns a group.   Expect: ERROR 1451
+-- TEST 9: ON DELETE RESTRICT, delete grace (user 3) while she still owns a group.   Expect: ERROR 1451
 DELETE FROM users WHERE user_id = 3;
 
 -- ---------------------------------------------------------------------
 -- media
 -- ---------------------------------------------------------------------
 -- TEST 10: chk_title_not_blank, blank title.             Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('   ', 2000, 'x', 'book');
+INSERT INTO media (title, release_year, summary)
+VALUES ('   ', 2000, 'x');
 
 -- TEST 11: chk_release_year, year before 1400.           Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('Too Old', 1200, 'x', 'book');
-
--- TEST 12: chk_media_type, type not in the list.         Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('Video Game', 2020, 'x', 'game');
+INSERT INTO media (title, release_year, summary)
+VALUES ('Too Old', 1200, 'x');
 
 -- ---------------------------------------------------------------------
--- media children (these use the setup rows 901-907)
+-- media children (these use the setup rows 901-906)
 -- ---------------------------------------------------------------------
--- TEST 13: chk_page_count, zero pages.                   Expect: ERROR 3819
+-- TEST 12: chk_page_count, zero pages.                   Expect: ERROR 3819
 INSERT INTO books (media_id, author, isbn, page_count)
 VALUES (901, 'A', '9780000000002', 0);
 
--- TEST 14: chk_isbn_length, ISBN with only 5 characters. Expect: ERROR 3819
+-- TEST 13: chk_isbn_format, ISBN with only 5 digits.     Expect: ERROR 3819
 INSERT INTO books (media_id, author, isbn, page_count)
 VALUES (902, 'A', '12345', 100);
 
--- TEST 15: chk_tv_counts, zero seasons.                  Expect: ERROR 3819
-INSERT INTO tv_shows (media_id, director, episode_count, season_count)
-VALUES (903, 'D', 5, 0);
+-- TEST 14: chk_isbn_format, right length but has hyphens. Expect: ERROR 3819
+INSERT INTO books (media_id, author, isbn, page_count)
+VALUES (902, 'A', '978-14000317', 100);
 
--- TEST 16: chk_tv_counts, fewer episodes than seasons.   Expect: ERROR 3819
-INSERT INTO tv_shows (media_id, director, episode_count, season_count)
-VALUES (904, 'D', 2, 5);
-
--- TEST 17: chk_movie_duration, zero minutes.             Expect: ERROR 3819
+-- TEST 15: chk_movie_duration, zero minutes.             Expect: ERROR 3819
 INSERT INTO movies (media_id, director, duration_minutes)
 VALUES (905, 'D', 0);
 
--- TEST 18: chk_podcast_episodes, zero episodes.          Expect: ERROR 3819
-INSERT INTO podcasts (media_id, episode_count)
-VALUES (906, 0);
-
--- TEST 19: chk_song_duration, negative length.           Expect: ERROR 3819
+-- TEST 16: chk_song_duration, negative length.           Expect: ERROR 3819
 INSERT INTO songs (media_id, artist, duration_minutes)
-VALUES (907, 'A', -3.5);
+VALUES (906, 'A', -3.5);
+
+-- ---------------------------------------------------------------------
+-- episodes (weak entities; 903 is a TV show, 904 a podcast)
+-- ---------------------------------------------------------------------
+-- TEST 17: chk_tv_episode_numbers, season 0.             Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (903, 0, 1, 'Ep', 40);
+
+-- TEST 18: chk_tv_episode_title, blank title.            Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (903, 1, 1, '   ', 40);
+
+-- TEST 19: chk_tv_episode_duration, zero minutes.        Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (903, 1, 1, 'Ep', 0);
+
+-- TEST 20: weak entity, episode of a show that does not exist.   Expect: ERROR 1452
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (999, 1, 1, 'Orphan Episode', 40);
+
+-- TEST 21: weak entity, TV episode on a podcast (904 is not a TV show).   Expect: ERROR 1452
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (904, 1, 1, 'Wrong Owner', 40);
+
+-- TEST 22: chk_podcast_episode_number, episode 0.        Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes)
+VALUES (904, 0, 'Ep', 30);
+
+-- TEST 23: chk_podcast_episode_title, blank title.       Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes)
+VALUES (904, 1, '   ', 30);
+
+-- TEST 24: chk_podcast_episode_duration, negative.       Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes)
+VALUES (904, 1, 'Ep', -5);
 
 -- ---------------------------------------------------------------------
 -- tag, reviews, tracks
 -- ---------------------------------------------------------------------
--- TEST 20: chk_tag_not_blank, blank tag name.            Expect: ERROR 3819
+-- TEST 25: chk_tag_not_blank, blank tag name.            Expect: ERROR 3819
 INSERT INTO tag (name)
 VALUES ('   ');
 
--- TEST 21: chk_review_not_blank, blank review.           Expect: ERROR 3819
+-- TEST 26: chk_tag_lowercase, tag with capital letters.  Expect: ERROR 3819
+INSERT INTO tag (name)
+VALUES ('Cozy Vibes');
+
+-- TEST 27: chk_review_not_blank, blank review.           Expect: ERROR 3819
 INSERT INTO reviews (user_id, media_id, user_review)
 VALUES (3, 1, '   ');
 
--- TEST 22: chk_media_status, status not in the list.     Expect: ERROR 3819
+-- TEST 28: chk_media_status, status not in the list.     Expect: ERROR 3819
 INSERT INTO tracks (user_id, media_id, media_status)
 VALUES (3, 1, 'binge_watching');
 
 -- ---------------------------------------------------------------------
 -- KNOWN LIMITATION (this one is ACCEPTED, it does not fail)
--- Media 905 is a movie, but nothing stops it also being added to books. A CHECK cannot compare
--- two tables. Planned fix for the next sprint: stricter inheritance / referential constraints.
+-- The ISA should be disjoint: a media item is exactly one type. Nothing yet stops media 905
+-- from being both a movie and a book. A CHECK cannot compare two tables; planned fix for the
+-- next sprint: triggers on the child tables.
 -- ---------------------------------------------------------------------
-INSERT INTO books (media_id, author, isbn, page_count)
-VALUES (905, 'Wrong table', NULL, NULL);
+INSERT INTO movies (media_id, director, duration_minutes) VALUES (905, 'D', 100);
+INSERT INTO books  (media_id, author, isbn, page_count)  VALUES (905, 'Wrong table', NULL, NULL);
 
 -- ---------------------------------------------------------------------
--- CLEAN UP: remove everything the tests added
+-- CLEAN UP: deleting the test media removes their child rows too (ON DELETE CASCADE)
 -- ---------------------------------------------------------------------
-DELETE FROM books WHERE media_id = 905;
 DELETE FROM media WHERE media_id >= 901;
 
 -- Both lists should match the seed data exactly (3 users, 7 media items, 1 group)

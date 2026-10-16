@@ -1,11 +1,3 @@
--- run_all.sql
--- Builds the whole database, then runs the demo scripts.
--- From the repository root:
---     cd media-tracker/sql
---     mysql -u root -p
---     mysql> SOURCE run_all.sql;
--- Running it again is safe: it drops and rebuilds everything first.
--- (MySQL Workbench does not support SOURCE: open and run the files below one by one, in order.)
 
 -- ---------------- build ----------------
 SOURCE setup.sql;
@@ -23,5 +15,7 @@ SOURCE alter_table.sql;
 
 -- Not run here because they need extra setup. See the README:
 --   check_tests.sql      (statements that are meant to fail; needs mysql --force)
+--   fk_tests.sql         (PASS/FAIL tests for the ON DELETE policies; rolls itself back)
+--   normalization_tests.sql (PASS/FAIL tests for 3NF/4NF; rolls itself back)
 --   load_csv.sql         (needs local_infile switched on)
 --   queries_stretch.sql  (optional advanced queries)

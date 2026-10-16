@@ -1,9 +1,3 @@
--- schema_users_groups.sql
--- Tables about people: users, friends, user_groups, member_of.
---
--- Foreign keys have no ON DELETE clause, so MySQL's default applies: a row that other rows
--- still point to cannot be deleted. Delete the child rows first, then the parent.
--- (CHECK constraints are added separately in checks.sql.)
 
 USE media_tracker;
 
@@ -19,25 +13,27 @@ CREATE TABLE users (
 
 -- ---------------------------------------------------------------------
 -- FRIENDS  (Users M:N Users: follower follows followed)
+-- Deleting a user removes their follows in both directions.
 -- ---------------------------------------------------------------------
 CREATE TABLE friends (
     follower_id  INT,
     followed_id  INT,
     PRIMARY KEY (follower_id, followed_id),
-    FOREIGN KEY (follower_id) REFERENCES users (user_id),
-    FOREIGN KEY (followed_id) REFERENCES users (user_id)
+    FOREIGN KEY (follower_id) REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (followed_id) REFERENCES users (user_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- ---------------------------------------------------------------------
 -- USER_GROUPS  (named user_groups because GROUPS is a reserved word in MySQL 8)
 -- CREATES is many-to-one: each group has exactly one creator, so it is the creator_id column.
--- A user who still owns a group cannot be deleted (reassign or delete the group first).
+-- RESTRICT: a user who still owns a group cannot be deleted. Reassign or delete the group first,
+-- so a group is never left without a creator.
 -- ---------------------------------------------------------------------
 CREATE TABLE user_groups (
     group_id    INT           AUTO_INCREMENT PRIMARY KEY,
     group_name  VARCHAR(100)  NOT NULL,
     creator_id  INT           NOT NULL,
-    FOREIGN KEY (creator_id) REFERENCES users (user_id)
+    FOREIGN KEY (creator_id) REFERENCES users (user_id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 -- ---------------------------------------------------------------------
@@ -47,6 +43,6 @@ CREATE TABLE member_of (
     group_id  INT,
     user_id   INT,
     PRIMARY KEY (group_id, user_id),
-    FOREIGN KEY (group_id) REFERENCES user_groups (group_id),
-    FOREIGN KEY (user_id)  REFERENCES users (user_id)
+    FOREIGN KEY (group_id) REFERENCES user_groups (group_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (user_id)  REFERENCES users (user_id)        ON DELETE CASCADE ON UPDATE CASCADE
 );
