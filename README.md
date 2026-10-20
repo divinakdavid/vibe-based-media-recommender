@@ -8,7 +8,8 @@ This repository contains the conceptual design (ERD and a design audit), the nor
 referential-integrity write-ups, and the relational implementation as SQL (DDL, constraints, sample data,
 data loading, queries, tests).
 
-![ERD](<img width="2153" height="1475" alt="image" src="https://github.com/user-attachments/assets/7a3d1cc7-fadf-419d-a603-16d1a6dd0e3d"/>)
+<img width="612" height="352" alt="image" src="https://github.com/user-attachments/assets/effdb0a0-a816-4bae-944c-81c6aaf3e5ea" />
+
 
 ## Requirements
 
