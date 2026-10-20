@@ -13,32 +13,45 @@ INSERT INTO users (username, email, password_hash) VALUES
     ('grace',  'grace@example.com',  '$2b$12$placeholderhashgrace00000');   -- 3
 
 -- Media (media_id 1-7)
-INSERT INTO media (title, release_year, summary, media_type) VALUES
-    ('The Secret History', 1992, 'Classics students and a murder.',                  'book'),      -- 1
-    ('Twin Peaks',         1990, 'A strange small-town mystery.',                    'tv_show'),   -- 2
-    ('Knives Out',         2019, 'A detective untangles a family.',                  'movie'),     -- 3
-    ('Serial',             2014, 'Investigative true crime.',                        'podcast'),   -- 4
-    ('Moonlight Sonata',   1801, 'Piano sonata, first movement.',                    'song'),      -- 5
-    ('Dead Poets Society', 1989, 'An English teacher inspires a boarding school.',   'movie'),     -- 6
-    ('Clair de Lune',      1905, 'Quiet, dreamy piano piece.',                       'song');      -- 7
+INSERT INTO media (title, release_year, summary) VALUES
+    ('The Secret History', 1992, 'Classics students and a murder.'),                   -- 1 book
+    ('Twin Peaks',         1990, 'A strange small-town mystery.'),                     -- 2 tv show
+    ('Knives Out',         2019, 'A detective untangles a family.'),                   -- 3 movie
+    ('Serial',             2014, 'Investigative true crime.'),                         -- 4 podcast
+    ('Moonlight Sonata',   1801, 'Piano sonata, first movement.'),                     -- 5 song
+    ('Dead Poets Society', 1989, 'An English teacher inspires a boarding school.'),    -- 6 movie
+    ('Clair de Lune',      1905, 'Quiet, dreamy piano piece.');                        -- 7 song
 
--- One row in the matching child table for each media row
+-- Exactly one row in exactly one child table for each media row. That row IS the media type;
+-- there is no media_type column.
 INSERT INTO books (media_id, author, isbn, page_count) VALUES
     (1, 'Donna Tartt', '9781400031702', 559);
 
-INSERT INTO tv_shows (media_id, director, episode_count, season_count) VALUES
-    (2, 'David Lynch', 48, 3);
+INSERT INTO tv_shows (media_id, director) VALUES
+    (2, 'David Lynch');
 
 INSERT INTO movies (media_id, director, duration_minutes) VALUES
     (3, 'Rian Johnson', 130),
     (6, 'Peter Weir',   128);
 
-INSERT INTO podcasts (media_id, episode_count) VALUES
-    (4, 40);
+INSERT INTO podcasts (media_id) VALUES
+    (4);
 
 INSERT INTO songs (media_id, artist, duration_minutes) VALUES
     (5, 'Beethoven', 6.00),
     (7, 'Debussy',   5.00);
+
+-- Episodes (weak entity sets). Titles are real; durations are illustrative placeholders.
+-- Seasons and episodes are no longer stored as counts: they are counted from these rows.
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes) VALUES
+    (2, 1, 1, 'Pilot',                      94.00),
+    (2, 1, 2, 'Traces to Nowhere',          47.00),
+    (2, 2, 1, 'May the Giant Be with You',  47.00);
+
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes) VALUES
+    (4, 1, 'The Alibi',      41.00),
+    (4, 2, 'The Breakup',    52.00),
+    (4, 3, 'Leakin Park',    46.00);
 
 -- Tags (tag_id 1-4)
 INSERT INTO tag (name) VALUES

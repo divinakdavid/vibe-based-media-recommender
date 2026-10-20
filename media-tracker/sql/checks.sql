@@ -34,9 +34,6 @@ ALTER TABLE user_groups ADD CONSTRAINT chk_group_name_not_blank
 ALTER TABLE media ADD CONSTRAINT chk_title_not_blank
     CHECK (CHAR_LENGTH(TRIM(title)) >= 1);
 
-ALTER TABLE media ADD CONSTRAINT chk_media_type
-    CHECK (media_type IN ('book', 'tv_show', 'movie', 'podcast', 'song'));
-
 ALTER TABLE media ADD CONSTRAINT chk_release_year
     CHECK (release_year BETWEEN 1400 AND 2100);
 
@@ -48,12 +45,23 @@ ALTER TABLE books ADD CONSTRAINT chk_page_count
 ALTER TABLE books ADD CONSTRAINT chk_isbn_length
     CHECK (CHAR_LENGTH(isbn) IN (10, 13));
 
-ALTER TABLE tv_shows ADD CONSTRAINT chk_tv_counts
-    CHECK (season_count > 0 AND episode_count >= season_count);
+ALTER TABLE movies ADD CONSTRAINT chk_movie_duration CHECK (duration_minutes > 0);
+ALTER TABLE songs  ADD CONSTRAINT chk_song_duration  CHECK (duration_minutes > 0);
 
-ALTER TABLE movies   ADD CONSTRAINT chk_movie_duration   CHECK (duration_minutes > 0);
-ALTER TABLE podcasts ADD CONSTRAINT chk_podcast_episodes CHECK (episode_count > 0);
-ALTER TABLE songs    ADD CONSTRAINT chk_song_duration    CHECK (duration_minutes > 0);
+-- ---------------- episodes (weak entity sets) ----------------
+ALTER TABLE tv_episodes ADD CONSTRAINT chk_tv_episode_numbers
+    CHECK (season_number > 0 AND episode_number > 0);
+ALTER TABLE tv_episodes ADD CONSTRAINT chk_tv_episode_title
+    CHECK (CHAR_LENGTH(TRIM(title)) >= 1);
+ALTER TABLE tv_episodes ADD CONSTRAINT chk_tv_episode_duration
+    CHECK (duration_minutes > 0);
+
+ALTER TABLE podcast_episodes ADD CONSTRAINT chk_podcast_episode_number
+    CHECK (episode_number > 0);
+ALTER TABLE podcast_episodes ADD CONSTRAINT chk_podcast_episode_title
+    CHECK (CHAR_LENGTH(TRIM(title)) >= 1);
+ALTER TABLE podcast_episodes ADD CONSTRAINT chk_podcast_episode_duration
+    CHECK (duration_minutes > 0);
 
 -- ---------------- tag ----------------
 ALTER TABLE tag ADD CONSTRAINT chk_tag_not_blank

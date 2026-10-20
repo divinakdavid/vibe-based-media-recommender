@@ -4,8 +4,9 @@
 -- up exactly as it started.
 --
 -- Demo rows use ids 801 and up so they can never clash with the seed data (ids 1-7).
--- Foreign keys have no ON DELETE action, so the DELETE section removes child rows
--- before the parent rows they point to.
+-- Most foreign keys are ON DELETE CASCADE, but the DELETE section still removes child rows
+-- explicitly, one table at a time, so every table's DELETE is shown. fk_tests.sql
+-- demonstrates the cascades themselves.
 
 USE media_tracker;
 
@@ -27,18 +28,26 @@ INSERT INTO friends (follower_id, followed_id) VALUES
     (801, 802);
 
 -- Each media item is a row in media plus a row in its child table
-INSERT INTO media (media_id, title, release_year, summary, media_type) VALUES
-    (801, 'Demo Book',    2020, 'A demo book.',    'book'),
-    (802, 'Demo Show',    2021, 'A demo show.',    'tv_show'),
-    (803, 'Demo Movie',   2022, 'A demo movie.',   'movie'),
-    (804, 'Demo Podcast', 2019, 'A demo podcast.', 'podcast'),
-    (805, 'Demo Song',    2023, 'A demo song.',    'song');
+INSERT INTO media (media_id, title, release_year, summary) VALUES
+    (801, 'Demo Book',    2020, 'A demo book.'),
+    (802, 'Demo Show',    2021, 'A demo show.'),
+    (803, 'Demo Movie',   2022, 'A demo movie.'),
+    (804, 'Demo Podcast', 2019, 'A demo podcast.'),
+    (805, 'Demo Song',    2023, 'A demo song.');
 
 INSERT INTO books    (media_id, author, isbn, page_count)                  VALUES (801, 'Demo Author', '9781234567897', 300);
-INSERT INTO tv_shows (media_id, director, episode_count, season_count)     VALUES (802, 'Demo Director', 16, 2);
+INSERT INTO tv_shows (media_id, director)                                  VALUES (802, 'Demo Director');
 INSERT INTO movies   (media_id, director, duration_minutes)                VALUES (803, 'Demo Director', 110.50);
-INSERT INTO podcasts (media_id, episode_count)                             VALUES (804, 25);
+INSERT INTO podcasts (media_id)                                            VALUES (804);
 INSERT INTO songs    (media_id, artist, duration_minutes)                  VALUES (805, 'Demo Artist', 3.50);
+
+-- Episodes are weak entities: each is identified by its show's media_id plus its own number(s)
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes) VALUES
+    (802, 1, 1, 'Demo Pilot',   45.50),
+    (802, 1, 2, 'Demo Episode', 44.00);
+
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes) VALUES
+    (804, 1, 'Demo Episode One', 30.00);
 
 INSERT INTO tag (tag_id, name) VALUES
     (801, 'demo_vibe');
@@ -60,7 +69,7 @@ INSERT INTO tracks (user_id, media_id, media_status) VALUES
 
 -- Look at what we just added
 SELECT user_id, username, email FROM users WHERE user_id >= 801;
-SELECT media_id, title, media_type FROM media WHERE media_id >= 801;
+SELECT media_id, title, media_type FROM media_with_type WHERE media_id >= 801;
 
 
 -- =====================================================================
@@ -79,10 +88,15 @@ UPDATE media SET summary = 'An updated demo summary.' WHERE media_id = 801;
 UPDATE media SET release_year = 2018                  WHERE media_id = 804;
 
 UPDATE books    SET page_count = 350            WHERE media_id = 801;
-UPDATE tv_shows SET episode_count = 20          WHERE media_id = 802;
+UPDATE tv_shows SET director = 'Demo Director II' WHERE media_id = 802;
 UPDATE movies   SET duration_minutes = 125.25   WHERE media_id = 803;
-UPDATE podcasts SET episode_count = 30          WHERE media_id = 804;
+-- podcasts has only its key column, so there is nothing in it to UPDATE.
 UPDATE songs    SET duration_minutes = 4.25     WHERE media_id = 805;
+
+UPDATE tv_episodes      SET title = 'Demo Pilot (edited)'
+WHERE media_id = 802 AND season_number = 1 AND episode_number = 1;
+UPDATE podcast_episodes SET title = 'Demo Episode One (edited)'
+WHERE media_id = 804 AND episode_number = 1;
 
 UPDATE tag SET name = 'demo_vibe_renamed' WHERE tag_id = 801;
 
@@ -111,6 +125,9 @@ DELETE FROM tracks      WHERE user_id = 801 AND media_id = 801;
 DELETE FROM recommends  WHERE group_id = 801 AND media_id = 803;
 DELETE FROM has_tag     WHERE media_id = 801 AND tag_id = 3;
 DELETE FROM tag         WHERE tag_id = 801;
+
+DELETE FROM tv_episodes      WHERE media_id = 802;
+DELETE FROM podcast_episodes WHERE media_id = 804;
 
 DELETE FROM books    WHERE media_id = 801;
 DELETE FROM tv_shows WHERE media_id = 802;

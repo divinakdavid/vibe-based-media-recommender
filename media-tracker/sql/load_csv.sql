@@ -22,14 +22,15 @@
 USE media_tracker;
 
 -- ---------------------------------------------------------------------
--- media (the parent rows must be loaded before the child rows)
+-- media (the parent rows must be loaded before the child rows).
+-- There is no media_type column: a row's type is the child table it is loaded into below.
 -- ---------------------------------------------------------------------
 LOAD DATA LOCAL INFILE '../data/media.csv'
 IGNORE INTO TABLE media
 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
 LINES TERMINATED BY '\n'
 IGNORE 1 LINES
-(media_id, title, @release_year, @summary, media_type)
+(media_id, title, @release_year, @summary)
 SET release_year = NULLIF(@release_year, ''),
     summary      = NULLIF(@summary, '');
 SHOW WARNINGS;
@@ -81,7 +82,7 @@ SHOW WARNINGS;
 -- CHECK: the loaded media and their vibes (one row per tag)
 -- ---------------------------------------------------------------------
 SELECT m.media_id, m.title, m.release_year, m.media_type, t.name AS vibe
-FROM media m
+FROM media_with_type m
 JOIN has_tag ht ON ht.media_id = m.media_id
 JOIN tag t      ON t.tag_id = ht.tag_id
 WHERE m.media_id >= 101

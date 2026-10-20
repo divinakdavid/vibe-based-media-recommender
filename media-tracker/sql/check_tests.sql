@@ -16,16 +16,19 @@
 USE media_tracker;
 
 -- ---------------------------------------------------------------------
--- SETUP: valid media rows (no child rows yet) for the child-table tests below
+-- SETUP: valid media rows for the child-table tests below. Media 905 and 906 also get their
+-- child row now, because the episode tests need a real show and a real podcast to point at.
 -- ---------------------------------------------------------------------
-INSERT INTO media (media_id, title, release_year, summary, media_type) VALUES
-    (901, 'Test Book A',   2020, 'x', 'book'),
-    (902, 'Test Book B',   2020, 'x', 'book'),
-    (903, 'Test Show A',   2020, 'x', 'tv_show'),
-    (904, 'Test Show B',   2020, 'x', 'tv_show'),
-    (905, 'Test Movie',    2020, 'x', 'movie'),
-    (906, 'Test Podcast',  2020, 'x', 'podcast'),
-    (907, 'Test Song',     2020, 'x', 'song');
+INSERT INTO media (media_id, title, release_year, summary) VALUES
+    (901, 'Test Book A',   2020, 'x'),
+    (902, 'Test Book B',   2020, 'x'),
+    (903, 'Test Movie',    2020, 'x'),
+    (904, 'Test Song',     2020, 'x'),
+    (905, 'Test Show',     2020, 'x'),
+    (906, 'Test Podcast',  2020, 'x');
+
+INSERT INTO tv_shows (media_id, director) VALUES (905, 'D');
+INSERT INTO podcasts (media_id)           VALUES (906);
 
 -- ---------------------------------------------------------------------
 -- users
@@ -72,75 +75,88 @@ DELETE FROM users WHERE user_id = 3;
 -- media
 -- ---------------------------------------------------------------------
 -- TEST 10: chk_title_not_blank, blank title.             Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('   ', 2000, 'x', 'book');
+INSERT INTO media (title, release_year, summary)
+VALUES ('   ', 2000, 'x');
 
 -- TEST 11: chk_release_year, year before 1400.           Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('Too Old', 1200, 'x', 'book');
-
--- TEST 12: chk_media_type, type not in the list.         Expect: ERROR 3819
-INSERT INTO media (title, release_year, summary, media_type)
-VALUES ('Video Game', 2020, 'x', 'game');
+INSERT INTO media (title, release_year, summary)
+VALUES ('Too Old', 1200, 'x');
 
 -- ---------------------------------------------------------------------
 -- media children (these use the setup rows 901-907)
 -- ---------------------------------------------------------------------
--- TEST 13: chk_page_count, zero pages.                   Expect: ERROR 3819
+-- TEST 12: chk_page_count, zero pages.                   Expect: ERROR 3819
 INSERT INTO books (media_id, author, isbn, page_count)
 VALUES (901, 'A', '9780000000002', 0);
 
--- TEST 14: chk_isbn_length, ISBN with only 5 characters. Expect: ERROR 3819
+-- TEST 13: chk_isbn_length, ISBN with only 5 characters. Expect: ERROR 3819
 INSERT INTO books (media_id, author, isbn, page_count)
 VALUES (902, 'A', '12345', 100);
 
--- TEST 15: chk_tv_counts, zero seasons.                  Expect: ERROR 3819
-INSERT INTO tv_shows (media_id, director, episode_count, season_count)
-VALUES (903, 'D', 5, 0);
-
--- TEST 16: chk_tv_counts, fewer episodes than seasons.   Expect: ERROR 3819
-INSERT INTO tv_shows (media_id, director, episode_count, season_count)
-VALUES (904, 'D', 2, 5);
-
--- TEST 17: chk_movie_duration, zero minutes.             Expect: ERROR 3819
+-- TEST 14: chk_movie_duration, zero minutes.             Expect: ERROR 3819
 INSERT INTO movies (media_id, director, duration_minutes)
-VALUES (905, 'D', 0);
+VALUES (903, 'D', 0);
 
--- TEST 18: chk_podcast_episodes, zero episodes.          Expect: ERROR 3819
-INSERT INTO podcasts (media_id, episode_count)
-VALUES (906, 0);
-
--- TEST 19: chk_song_duration, negative length.           Expect: ERROR 3819
+-- TEST 15: chk_song_duration, negative length.           Expect: ERROR 3819
 INSERT INTO songs (media_id, artist, duration_minutes)
-VALUES (907, 'A', -3.5);
+VALUES (904, 'A', -3.5);
+
+-- ---------------------------------------------------------------------
+-- episodes (weak entity sets; they use the show 905 and the podcast 906 from the setup)
+-- ---------------------------------------------------------------------
+-- TEST 16: chk_tv_episode_numbers, season number 0.      Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title)
+VALUES (905, 0, 1, 'Pilot');
+
+-- TEST 17: chk_tv_episode_title, blank title.            Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title)
+VALUES (905, 1, 1, '   ');
+
+-- TEST 18: chk_tv_episode_duration, zero minutes.        Expect: ERROR 3819
+INSERT INTO tv_episodes (media_id, season_number, episode_number, title, duration_minutes)
+VALUES (905, 1, 1, 'Pilot', 0);
+
+-- TEST 19: chk_podcast_episode_number, episode number 0. Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title)
+VALUES (906, 0, 'Pilot');
+
+-- TEST 20: chk_podcast_episode_title, blank title.       Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title)
+VALUES (906, 1, '   ');
+
+-- TEST 21: chk_podcast_episode_duration, negative length. Expect: ERROR 3819
+INSERT INTO podcast_episodes (media_id, episode_number, title, duration_minutes)
+VALUES (906, 1, 'Pilot', -5);
 
 -- ---------------------------------------------------------------------
 -- tag, reviews, tracks
 -- ---------------------------------------------------------------------
--- TEST 20: chk_tag_not_blank, blank tag name.            Expect: ERROR 3819
+-- TEST 22: chk_tag_not_blank, blank tag name.            Expect: ERROR 3819
 INSERT INTO tag (name)
 VALUES ('   ');
 
--- TEST 21: chk_review_not_blank, blank review.           Expect: ERROR 3819
+-- TEST 23: chk_review_not_blank, blank review.           Expect: ERROR 3819
 INSERT INTO reviews (user_id, media_id, user_review)
 VALUES (3, 1, '   ');
 
--- TEST 22: chk_media_status, status not in the list.     Expect: ERROR 3819
+-- TEST 24: chk_media_status, status not in the list.     Expect: ERROR 3819
 INSERT INTO tracks (user_id, media_id, media_status)
 VALUES (3, 1, 'binge_watching');
 
 -- ---------------------------------------------------------------------
 -- KNOWN LIMITATION (this one is ACCEPTED, it does not fail)
--- Media 905 is a movie, but nothing stops it also being added to books. A CHECK cannot compare
--- two tables. Planned fix for the next sprint: stricter inheritance / referential constraints.
+-- Each media item is meant to be in exactly one child table, but MySQL cannot declare that rule
+-- across tables. Media 903 is a movie, yet nothing stops it also being added to books, and the
+-- setup rows above are media rows with no child row at all. integrity_audit.sql reports both
+-- kinds of problem; they are rules the data entry has to respect.
 -- ---------------------------------------------------------------------
 INSERT INTO books (media_id, author, isbn, page_count)
-VALUES (905, 'Wrong table', NULL, NULL);
+VALUES (903, 'Wrong table', NULL, NULL);
 
 -- ---------------------------------------------------------------------
 -- CLEAN UP: remove everything the tests added
 -- ---------------------------------------------------------------------
-DELETE FROM books WHERE media_id = 905;
+-- ON DELETE CASCADE removes the child rows (the wrong books row, tv_shows, podcasts) with them.
 DELETE FROM media WHERE media_id >= 901;
 
 -- Both lists should match the seed data exactly (3 users, 7 media items, 1 group)

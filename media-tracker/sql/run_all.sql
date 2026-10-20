@@ -20,8 +20,10 @@ SOURCE seed_data.sql;
 SOURCE crud_operations.sql;
 SOURCE queries.sql;
 SOURCE alter_table.sql;
+SOURCE integrity_audit.sql;      -- 24 checks, every one must show 0 violations
 
 -- Not run here because they need extra setup. See the README:
 --   check_tests.sql      (statements that are meant to fail; needs mysql --force)
+--   fk_tests.sql         (foreign key RESTRICT / CASCADE tests; needs mysql --force)
 --   load_csv.sql         (needs local_infile switched on)
 --   queries_stretch.sql  (optional advanced queries)
