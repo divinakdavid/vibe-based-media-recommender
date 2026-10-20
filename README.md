@@ -7,7 +7,8 @@ join groups that recommend media. Picking one item can suggest items of other ty
 This repository contains the conceptual design (ERD), the normalisation work, and the relational
 implementation as SQL (DDL, constraints, sample data, data loading, queries).
 
-![ERD](media-tracker/docs/erd/erd_full.png)
+<img width="2153" height="1475" alt="image" src="https://github.com/user-attachments/assets/9b65a0b2-5820-4551-9418-6fdea8955a64" />
+
 
 ## Requirements
 
