@@ -1,3 +1,15 @@
+-- schema_media.sql
+-- Tables about media: media (parent), its five ISA child tables, two weak entity sets for
+-- episodes, tag and has_tag.
+--
+-- ISA: each child table uses media_id as its primary key AND as a foreign key to media,
+-- so a book "is a" media item. Each media row is meant to be in exactly one child table.
+-- MySQL cannot declare that rule, so integrity_audit.sql checks it.
+-- The type of an item is not stored: it is whichever child table holds the row
+-- (see the media_with_type view at the end of the ISA section).
+--
+-- Foreign keys: ON DELETE CASCADE / RESTRICT and ON UPDATE RESTRICT are explained in
+-- schema_users_groups.sql
 
 USE media_tracker;
 
