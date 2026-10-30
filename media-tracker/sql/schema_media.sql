@@ -9,7 +9,7 @@
 -- (see the media_with_type view at the end of the ISA section).
 --
 -- Foreign keys: ON DELETE CASCADE / RESTRICT and ON UPDATE RESTRICT are explained in
--- schema_users_groups.sql and docs/referential_integrity.md.
+-- schema_users_groups.sql
 
 USE media_tracker;
 
