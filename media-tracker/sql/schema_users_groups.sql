@@ -6,7 +6,7 @@
 --   ON DELETE RESTRICT  the parent cannot be deleted while rows still point to it
 --   ON UPDATE RESTRICT  ids are AUTO_INCREMENT surrogate keys that never change, so changing a
 --                       referenced id is rejected
--- Every constraint is listed, with its relational algebra form, in docs/referential_integrity.md.
+-- fk_tests.sql shows each policy at work, and integrity_audit.sql checks that no orphaned rows exist.
 -- (CHECK constraints are added separately in checks.sql.)
 
 USE media_tracker;
