@@ -105,4 +105,4 @@ The other test scripts check the DDL itself:
 
 The database does not yet stop one media item from being in two child tables (e.g. `books`
 and `movies`). This is not a normalisation issue, and `sql/integrity_audit.sql` reports such rows.
-A trigger that refuses them is planned for next sprint (`docs/sprint3_plan.md`, goal G5).
+A trigger that refuses them is planned for next sprint.
