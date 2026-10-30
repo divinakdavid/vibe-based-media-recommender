@@ -6,7 +6,6 @@
 -- Each foreign key is the relational algebra constraint  pi_cols(Child) is a subset of
 -- pi_cols(Parent)  i.e.  pi_cols(Child) - pi_cols(Parent) = empty set. The SQL below is the
 -- same expression: LEFT JOIN each child row to its parent and keep the rows that found none.
--- The constraints are written out in docs/referential_integrity.md.
 --
 -- The last two lines audit a rule that MySQL cannot declare (see schema_media.sql): each media
 -- row must be in exactly one child table, so there must be
