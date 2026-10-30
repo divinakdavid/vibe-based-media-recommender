@@ -10,9 +10,6 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
 
 ![ERD](media-tracker/docs/erd/erd_full.png)
 
-The original Sprint 1 ERD is in `media-tracker/docs/erd/erd_sprint1.png`; `media-tracker/docs/erd_audit.md`
-evaluates it and explains each change that led to the ERD above.
-
 ## Requirements
 
 - **MySQL 8.0.16 or newer.** Older versions accept `CHECK` constraints but silently ignore them.
@@ -32,10 +29,7 @@ evaluates it and explains each change that led to the ERD above.
     ├── docs/
     │   ├── erd/erd_full.png          final entity-relationship diagram (also as erd_full.svg)
     │   ├── erd/erd_sprint1.png       the original Sprint 1 ERD, before the changes
-    │   ├── normalisation.md          FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
-    │   ├── referential_integrity.md  every foreign key in relational algebra, with its ON DELETE / ON UPDATE policy
-    │   ├── erd_audit.md              evaluation of the original ERD, the changes made, and the final re-score
-    │   └── sprint3_plan.md           the next sprint's goals, each with an objective pass criterion
+    │   └── normalisation.md          FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
     └── sql/
         ├── run_all.sql               builds the database, then runs the safe demos and the integrity audit
         │
@@ -134,7 +128,7 @@ in which `rows_left` equals `expected` (0)**. Those rows show that deleting a us
 leaves no child rows behind.
 
 Then run `integrity_audit.sql`: all 24 `violations` values must still be `0`, which shows the tests left no
-orphaned rows. The constraints are written out in relational algebra in `media-tracker/docs/referential_integrity.md`.
+orphaned rows. Each audit row is a relational algebra constraint (every child value must appear in its parent), written as a `LEFT JOIN … IS NULL` query.
 
 ### Testing the normal forms: `normalization_tests.sql`
 
@@ -190,18 +184,13 @@ are at the top of the file. If you see *"Loading local data is disabled"*, one o
 - **Foreign keys** all state their policy explicitly. Rows that only make sense with their parent (track lists,
   memberships, reviews, children of a media item, episodes) are `ON DELETE CASCADE`. A group's creator and a tag
   that is in use are `ON DELETE RESTRICT`, so a user who still owns a group cannot be deleted until the group is
-  reassigned or removed. Every key is `ON UPDATE RESTRICT`, because ids never change. The reasoning is in
-  `media-tracker/docs/referential_integrity.md`.
+  reassigned or removed. Every key is `ON UPDATE RESTRICT`, because ids never change. The policies are listed in the comment at the top of `schema_users_groups.sql`.
 - **Data types.** `INT` ids with `AUTO_INCREMENT`, `VARCHAR` for names, `TEXT` for summaries and reviews, and
   `DECIMAL(5,2)` for durations in decimal minutes (`3.50` means 3 min 30 s, not 3:50). A `NULL` means "unknown"
   (for example a book without an ISBN).
 - **Constraints.** `PRIMARY KEY`, `FOREIGN KEY`, `UNIQUE` and `NOT NULL` in the schema files, plus 20 named
   `CHECK` constraints in `checks.sql` (value lists, positive numbers and durations, valid years, simple email and
   ISBN-length rules, no self-follows, no blank text).
-- **Design quality.** `media-tracker/docs/erd_audit.md` evaluates the original ERD against the standard design
-  criteria (29/40), lists the four derived attributes that were removed (the media type and the season and episode
-  counts), and re-scores the final ERD.
-- **Next sprint.** `media-tracker/docs/sprint3_plan.md` gives each planned goal an objective pass criterion.
 - **Naming.** The table is `user_groups` because `GROUPS` is a reserved word in MySQL 8. `password_hash` stores
   a hash, never a plain password; the values in the sample data are fake placeholders.
 
