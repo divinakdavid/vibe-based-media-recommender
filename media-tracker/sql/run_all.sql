@@ -1,11 +1,4 @@
--- run_all.sql
--- Builds the whole database, then runs the demo scripts.
--- From the repository root:
---     cd media-tracker/sql
---     mysql -u root -p
---     mysql> SOURCE run_all.sql;
--- Running it again is safe: it drops and rebuilds everything first.
--- (MySQL Workbench does not support SOURCE: open and run the files below one by one, in order.)
+
 
 -- ---------------- build ----------------
 SOURCE setup.sql;

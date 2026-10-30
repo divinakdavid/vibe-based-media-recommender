@@ -1,6 +1,4 @@
--- queries.sql
--- Basic retrieval queries: joins, WHERE and ORDER BY. Read-only, safe to re-run.
--- More advanced recommendation queries are in queries_stretch.sql.
+
 
 USE media_tracker;
 

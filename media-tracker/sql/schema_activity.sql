@@ -1,6 +1,4 @@
--- schema_activity.sql
--- Tables about what users do with media: tracks, reviews, review_tags, recommends.
--- Needs users and user_groups (schema_users_groups.sql) and media and tag (schema_media.sql).
+
 
 USE media_tracker;
 

@@ -1,23 +1,4 @@
--- load_csv.sql
--- Loads new media from the CSV files in ../data into the existing tables.
--- Run it AFTER seed_data.sql (it needs the tags that the seed data creates).
--- Safe to re-run: IGNORE skips rows that were already loaded. The loaded rows are kept
--- (media_id 101-105), so they appear in later queries.
---
--- SETUP (LOAD DATA LOCAL INFILE is switched off by default, on the server AND the client):
---   Command line: start the client from the sql/ folder so '../data' resolves:
---       mysql --local-infile=1 -u root -p
---       mysql> SET GLOBAL local_infile = 1;
---       mysql> SOURCE load_csv.sql;
---   MySQL Workbench: Database > Manage Connections > your connection > Advanced tab >
---       "Others" box: add   OPT_LOCAL_INFILE=1   then reconnect and run   SET GLOBAL local_infile = 1;
---       Workbench cannot resolve '../data', so replace each path below with the full path
---       to the CSV file (forward slashes, e.g. 'C:/project/media-tracker/data/media.csv').
---
--- How blanks are handled: an empty CSV field would load as '' (or 0 for a number), which is
--- data loss. Reading each optional column into a variable and applying NULLIF(@x, '') turns
--- a blank into NULL, which is what "unknown" means in the schema.
--- Decimal fields such as 103.5 load without truncation because duration_minutes is DECIMAL(5,2).
+
 
 USE media_tracker;
 
@@ -56,7 +37,7 @@ IGNORE 1 LINES
 (media_id, @director, @duration_minutes)
 SET director         = NULLIF(@director, ''),
     duration_minutes = NULLIF(@duration_minutes, '');
-SHOW WARNINGS;
+SHOW WARNINGS
 
 LOAD DATA LOCAL INFILE '../data/songs.csv'
 IGNORE INTO TABLE songs

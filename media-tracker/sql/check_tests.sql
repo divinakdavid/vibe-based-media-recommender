@@ -1,17 +1,3 @@
--- check_tests.sql
--- Proves that each CHECK constraint (and the foreign keys) rejects bad data.
--- Every INSERT/DELETE marked "Expect: ERROR ..." is SUPPOSED to fail. If MySQL accepts one,
--- that constraint is not working.
---
--- Run it after seed_data.sql. A failing statement stops the mysql client unless you use --force:
---     mysql --force -t -u root -p < check_tests.sql          (command line, from this folder)
--- In MySQL Workbench, run the statements one at a time and expect a red error on each test.
---
--- Error codes:  3819 = CHECK constraint violated
---               1451 = cannot delete a row that other rows still point to
---               1452 = cannot insert a row that points to a missing parent row
---
--- The test rows use ids 901 and up and are deleted again at the end.
 
 USE media_tracker;
 
@@ -28,7 +14,7 @@ INSERT INTO media (media_id, title, release_year, summary) VALUES
     (906, 'Test Podcast',  2020, 'x');
 
 INSERT INTO tv_shows (media_id, director) VALUES (905, 'D');
-INSERT INTO podcasts (media_id)           VALUES (906);
+INSERT INTO podcasts (media_id, host)     VALUES (906, 'H');
 
 -- ---------------------------------------------------------------------
 -- users

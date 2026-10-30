@@ -1,13 +1,4 @@
--- schema_users_groups.sql
--- Tables about people: users, friends, user_groups, member_of.
---
--- Every foreign key states its ON DELETE and ON UPDATE policy explicitly:
---   ON DELETE CASCADE   the row only makes sense with its parent, so it goes when the parent goes
---   ON DELETE RESTRICT  the parent cannot be deleted while rows still point to it
---   ON UPDATE RESTRICT  ids are AUTO_INCREMENT surrogate keys that never change, so changing a
---                       referenced id is rejected
--- Every constraint is listed, with its relational algebra form, in docs/referential_integrity.md.
--- (CHECK constraints are added separately in checks.sql.)
+
 
 USE media_tracker;
 

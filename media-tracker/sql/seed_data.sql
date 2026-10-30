@@ -1,8 +1,4 @@
--- seed_data.sql
--- Sample data so every table has rows to query.
--- Assumes a freshly built schema (drop_all -> schema_* -> checks), so AUTO_INCREMENT ids start at 1.
--- The ids in the comments below are the ones crud_operations.sql, check_tests.sql and
--- alter_table.sql rely on. password_hash values are fake placeholders, not real hashes.
+
 
 USE media_tracker;
 
@@ -34,8 +30,8 @@ INSERT INTO movies (media_id, director, duration_minutes) VALUES
     (3, 'Rian Johnson', 130),
     (6, 'Peter Weir',   128);
 
-INSERT INTO podcasts (media_id) VALUES
-    (4);
+INSERT INTO podcasts (media_id, host) VALUES
+    (4, 'Sarah Koenig');
 
 INSERT INTO songs (media_id, artist, duration_minutes) VALUES
     (5, 'Beethoven', 6.00),

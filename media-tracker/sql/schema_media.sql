@@ -1,15 +1,3 @@
--- schema_media.sql
--- Tables about media: media (parent), its five ISA child tables, two weak entity sets for
--- episodes, tag and has_tag.
---
--- ISA: each child table uses media_id as its primary key AND as a foreign key to media,
--- so a book "is a" media item. Each media row is meant to be in exactly one child table.
--- MySQL cannot declare that rule, so integrity_audit.sql checks it.
--- The type of an item is not stored: it is whichever child table holds the row
--- (see the media_with_type view at the end of the ISA section).
---
--- Foreign keys: ON DELETE CASCADE / RESTRICT and ON UPDATE RESTRICT are explained in
--- schema_users_groups.sql and docs/referential_integrity.md.
 
 USE media_tracker;
 
@@ -50,10 +38,10 @@ CREATE TABLE movies (
         ON DELETE CASCADE  ON UPDATE RESTRICT
 );
 
--- podcasts has no attributes of its own. It is still its own subset because podcast_episodes
--- (below) depends on it, which is what distinguishes it from the other media types.
+-- podcasts is also the owner of podcast_episodes (below).
 CREATE TABLE podcasts (
-    media_id  INT  PRIMARY KEY,
+    media_id  INT           PRIMARY KEY,
+    host      VARCHAR(255),
     FOREIGN KEY (media_id) REFERENCES media (media_id)
         ON DELETE CASCADE  ON UPDATE RESTRICT
 );

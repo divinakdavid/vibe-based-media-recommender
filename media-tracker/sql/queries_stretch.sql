@@ -1,7 +1,3 @@
--- queries_stretch.sql
--- STRETCH: recommendation queries that go beyond the course material so far.
--- They use GROUP BY, COUNT, NOT EXISTS and GROUP_CONCAT, which come later.
--- Read-only, safe to re-run. Change the usernames / titles to try other cases.
 
 USE media_tracker;
 

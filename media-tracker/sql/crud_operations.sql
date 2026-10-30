@@ -1,12 +1,4 @@
--- crud_operations.sql
--- Basic INSERT, UPDATE and DELETE on every table.
--- Safe to re-run: it adds demo rows, changes them, then deletes them, so the database ends
--- up exactly as it started.
---
--- Demo rows use ids 801 and up so they can never clash with the seed data (ids 1-7).
--- Most foreign keys are ON DELETE CASCADE, but the DELETE section still removes child rows
--- explicitly, one table at a time, so every table's DELETE is shown. fk_tests.sql
--- demonstrates the cascades themselves.
+
 
 USE media_tracker;
 
@@ -38,7 +30,7 @@ INSERT INTO media (media_id, title, release_year, summary) VALUES
 INSERT INTO books    (media_id, author, isbn, page_count)                  VALUES (801, 'Demo Author', '9781234567897', 300);
 INSERT INTO tv_shows (media_id, director)                                  VALUES (802, 'Demo Director');
 INSERT INTO movies   (media_id, director, duration_minutes)                VALUES (803, 'Demo Director', 110.50);
-INSERT INTO podcasts (media_id)                                            VALUES (804);
+INSERT INTO podcasts (media_id, host)                                      VALUES (804, 'Demo Host');
 INSERT INTO songs    (media_id, artist, duration_minutes)                  VALUES (805, 'Demo Artist', 3.50);
 
 -- Episodes are weak entities: each is identified by its show's media_id plus its own number(s)
@@ -90,7 +82,7 @@ UPDATE media SET release_year = 2018                  WHERE media_id = 804;
 UPDATE books    SET page_count = 350            WHERE media_id = 801;
 UPDATE tv_shows SET director = 'Demo Director II' WHERE media_id = 802;
 UPDATE movies   SET duration_minutes = 125.25   WHERE media_id = 803;
--- podcasts has only its key column, so there is nothing in it to UPDATE.
+UPDATE podcasts SET host = 'Demo Host II'      WHERE media_id = 804;
 UPDATE songs    SET duration_minutes = 4.25     WHERE media_id = 805;
 
 UPDATE tv_episodes      SET title = 'Demo Pilot (edited)'

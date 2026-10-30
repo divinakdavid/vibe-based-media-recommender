@@ -1,8 +1,3 @@
--- alter_table.sql
--- ALTER TABLE demo: add a column to an existing table, fill it with data, then remove it again.
--- Safe to re-run: the last step puts the table back exactly as it was.
--- Run it after seed_data.sql.
-
 USE media_tracker;
 
 -- 1) Before: reviews has three columns

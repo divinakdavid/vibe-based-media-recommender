@@ -29,8 +29,8 @@ starts from a key, so every table passes.
 | `review_tags` | `(user_id, media_id, tag_id)` | none |
 | `recommends` | `(group_id, media_id)` | none |
 
-**Latest ERD change:** `podcasts` now has a `host` column. `media_id → host` starts from the
-key, so `podcasts` is still in BCNF.
+**Latest ERD change:** `podcasts` now has a `host` column (in `schema_media.sql`).
+`media_id → host` starts from the key, so `podcasts` is still in BCNF.
 
 ## 2. Decomposition: `reviews` and `review_tags`
 

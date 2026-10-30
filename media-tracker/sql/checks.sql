@@ -1,12 +1,3 @@
--- checks.sql
--- Every CHECK constraint, added with ALTER TABLE so they are easy to find.
--- Run after the three schema_*.sql files. Requires MySQL 8.0.16+.
--- A violation raises error 3819: "Check constraint '...' is violated."
--- Constraint names must be unique across the whole database, hence the chk_ names.
---
--- A NULL value passes a CHECK (e.g. an unknown release_year is allowed).
--- Make the column NOT NULL in the schema if it must always be filled in.
-
 USE media_tracker;
 
 -- ---------------- users ----------------
