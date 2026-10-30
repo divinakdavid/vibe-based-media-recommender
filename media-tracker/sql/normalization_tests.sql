@@ -68,7 +68,8 @@ SELECT 'T2 insertion: adding a vibe = 1 row' AS test,
 
 -- Test 3: DELETION anomaly avoided.
 --   Deleting every review of a media item must NOT delete its vibes.
---   (review_tags rows go first: the foreign key has no ON DELETE CASCADE.)
+--   (review_tags rows are deleted first to be explicit; with ON DELETE CASCADE they would
+--   also go automatically when their review is deleted.)
 DELETE FROM review_tags WHERE media_id = 1;
 DELETE FROM reviews WHERE media_id = 1;
 SELECT 'T3 deletion: vibes survive when reviews are removed' AS test,

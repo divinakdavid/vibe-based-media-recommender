@@ -19,7 +19,8 @@ CREATE TABLE tracks (
 );
 
 -- ---------------------------------------------------------------------
--- REVIEWS  (Users M:N Media, with user_review)
+-- REVIEWS: a weak entity set in the ERD. A review is identified by the user who wrote it plus
+-- the media item it is about, so its primary key is made of those two foreign keys.
 -- ---------------------------------------------------------------------
 CREATE TABLE reviews (
     user_id      INT,
@@ -33,8 +34,8 @@ CREATE TABLE reviews (
 );
 
 -- ---------------------------------------------------------------------
--- REVIEW_TAGS: a review's tags are multi-valued, so they get their own table.
--- This is the BCNF decomposition worked through in docs/normalisation.md.
+-- REVIEW_TAGS: the relationship "Tagged with" between a review and a tag (many-to-many).
+-- A review has many tags, so they get their own table, as worked through in docs/normalisation.md.
 -- ---------------------------------------------------------------------
 CREATE TABLE review_tags (
     user_id   INT,

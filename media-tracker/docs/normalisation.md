@@ -29,8 +29,8 @@ starts from a key, so every table passes.
 | `review_tags` | `(user_id, media_id, tag_id)` | none |
 | `recommends` | `(group_id, media_id)` | none |
 
-**Latest ERD change:** `podcasts` now has a `host` column. `media_id → host` starts from the
-key, so `podcasts` is still in BCNF.
+`podcasts` has a `host` column (`media_id → host`). The dependency starts from the key, so
+`podcasts` is in BCNF.
 
 ## 2. Decomposition: `reviews` and `review_tags`
 
@@ -62,6 +62,22 @@ one table would pair every tag with every reviewer (3 tags × 3 reviewers = 9 ro
 3 + 3 = 6). We keep them in separate tables (`has_tag`, `reviews`, `review_tags`), so there
 is no such redundancy.
 
+In dependency notation (`↠` is a multivalued dependency, `→` a functional one), a table is in
+4NF when every non-trivial `X ↠ Y` has a key on the left. Here every multivalued fact has its
+own table:
+
+| MVD | Stored in | Why it is 4NF |
+|---|---|---|
+| `media_id ↠ tag_id` | `has_tag` | covers the whole table, so it is trivial |
+| `(user_id, media_id) ↠ tag_id` | `review_tags` | covers the whole table, so it is trivial |
+| `group_id ↠ user_id` and `group_id ↠ media_id` | `member_of` and `recommends`, kept apart | two columns each, so trivial |
+| `follower_id ↠ followed_id` | `friends` | two columns, so trivial |
+| none | every other table | a key determines every column and only single-valued facts are stored, so no non-trivial MVD has a non-key on its left |
+
+If `has_tag` and the reviews were merged into one table `(media_id, tag_id, user_id)`, both
+`media_id ↠ tag_id` and `media_id ↠ user_id` would hold with `media_id` not a key. That is the
+cross product that Test 1 builds for comparison.
+
 ## 5. Tests
 
 `sql/normalization_tests.sql` runs in a transaction and rolls back, so the data is unchanged.
@@ -77,7 +93,16 @@ is no such redundancy.
 | T7 | no data breaks a dependency |
 | T8 | duplicate email is rejected |
 
+The other test scripts check the DDL itself:
+
+| Script | Shows | Expected result |
+|---|---|---|
+| `sql/check_tests.sql` | each CHECK constraint rejects bad data | 24 expected errors (22 × 3819, 1451, 1452) |
+| `sql/fk_tests.sql` | every `ON DELETE` / `ON UPDATE` policy | 7 expected errors, then 19 counts equal to 0 |
+| `sql/integrity_audit.sql` | no orphaned rows; each media item is in one child table | 24 rows, every `violations` is 0 |
+
 ## Known limitation
 
 The database does not yet stop one media item from being in two child tables (e.g. `books`
-and `movies`). This is not a normalisation issue. A trigger is planned for next sprint.
+and `movies`). This is not a normalisation issue, and `sql/integrity_audit.sql` reports such rows.
+A trigger that refuses them is planned for next sprint (`docs/sprint3_plan.md`, goal G5).

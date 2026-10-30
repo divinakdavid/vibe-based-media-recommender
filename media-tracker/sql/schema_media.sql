@@ -50,10 +50,9 @@ CREATE TABLE movies (
         ON DELETE CASCADE  ON UPDATE RESTRICT
 );
 
--- podcasts has no attributes of its own. It is still its own subset because podcast_episodes
--- (below) depends on it, which is what distinguishes it from the other media types.
 CREATE TABLE podcasts (
-    media_id  INT  PRIMARY KEY,
+    media_id  INT           PRIMARY KEY,
+    host      VARCHAR(255),                      -- who presents the podcast (NULL if unknown)
     FOREIGN KEY (media_id) REFERENCES media (media_id)
         ON DELETE CASCADE  ON UPDATE RESTRICT
 );

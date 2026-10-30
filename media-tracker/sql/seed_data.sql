@@ -34,8 +34,8 @@ INSERT INTO movies (media_id, director, duration_minutes) VALUES
     (3, 'Rian Johnson', 130),
     (6, 'Peter Weir',   128);
 
-INSERT INTO podcasts (media_id) VALUES
-    (4);
+INSERT INTO podcasts (media_id, host) VALUES
+    (4, 'Sarah Koenig');
 
 INSERT INTO songs (media_id, artist, duration_minutes) VALUES
     (5, 'Beethoven', 6.00),
