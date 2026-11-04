@@ -1,7 +1,8 @@
 # Normalisation
 
 **Result:** all 18 tables are in BCNF (so also 3NF) and 4NF.
-**Evidence:** `sql/normalization_tests.sql` (8 tests, all `PASS`).
+**Evidence:** `sql/normalisation_tests.sql` (8 tests, all `PASS`).
+**Minimal basis:** the FDs below reduce to 28 FDs, worked out in `minimal_basis.md`.
 
 ## 1. BCNF check
 
@@ -80,7 +81,7 @@ cross product that Test 1 builds for comparison.
 
 ## 5. Tests
 
-`sql/normalization_tests.sql` runs in a transaction and rolls back, so the data is unchanged.
+`sql/normalisation_tests.sql`  the data will stay unchanged
 
 | Test | Shows |
 |---|---|

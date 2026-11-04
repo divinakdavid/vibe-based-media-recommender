@@ -29,6 +29,7 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
     ├── docs/
     │   ├── erd/erd_full.png          final entity-relationship diagram (also as erd_full.svg)
     │   ├── erd/erd_sprint1.png       the original Sprint 1 ERD, before the changes
+    │   ├── minimal_basis.md          minimal basis of the FDs (28 FDs), worked examples and 3NF synthesis
     │   └── normalisation.md          FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
     └── sql/
         ├── run_all.sql               builds the database, then runs the safe demos and the integrity audit
@@ -44,11 +45,14 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
         │
         ├── crud_operations.sql       INSERT / UPDATE / DELETE on every table
         ├── queries.sql               basic joins, filtering and sorting
+        ├── sfw_queries.sql           Sprint 2: SELECT-FROM-WHERE queries (complex conditions, constraints as queries, self-join, DML)
+        ├── sfw_tests.sql             Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
         ├── alter_table.sql           ALTER TABLE demo: add a column, fill it, remove it
         ├── integrity_audit.sql       counts orphaned rows for every foreign key, and checks each media item is in one child table
         ├── check_tests.sql           24 statements that are meant to be rejected by the constraints
         ├── fk_tests.sql              tests every ON DELETE / ON UPDATE policy (RESTRICT refusals and CASCADEs)
-        ├── normalization_tests.sql   8 tests showing the normal-form claims hold (no redundancy or anomalies)
+        ├── normalisation_tests.sql   8 tests showing the normal-form claims hold (no redundancy or anomalies)
+        ├── minimal_basis_tests.sql   23 checks that the minimal basis holds, is enforced and cannot be made smaller
         ├── load_csv.sql              loads new rows from ../data/*.csv
         └── queries_stretch.sql       optional recommendation queries (GROUP BY, COUNT, NOT EXISTS)
 ```
@@ -90,11 +94,14 @@ in any order.
 |---|---|
 | `crud_operations.sql` | Inserts demo rows into all 18 tables (ids 801 and up), updates them, then deletes them. The database ends exactly as it began (3 users, 7 media items). |
 | `queries.sql` | Three read-only queries: *pick a vibe* (media of every type with a given tag), *group picks* (what each group recommends and who created it) and the *episodes* of a TV show. |
+| `sfw_queries.sql` | Sprint 2, SELECT-FROM-WHERE. Each query lists its English question, output schema, source tables, predicates and expected result. Section 8 is an UPDATE that is rolled back. |
+| `sfw_tests.sql` | Runs every query in `sfw_queries.sql` and prints `PASS`/`FAIL` against the expected result. Runs in a transaction and rolls back, so it can be rerun. Run with `mysql -u root -p -t < sfw_tests.sql`. |
 | `alter_table.sql` | `DESCRIBE reviews`, adds a nullable `rating` column with a 1–5 CHECK, fills it for one review, then drops it again. |
 | `integrity_audit.sql` | Read-only. One row per foreign key (22) plus two checks on the media child tables, each with a `violations` count that must be `0`. |
 | `check_tests.sql` | See below. |
 | `fk_tests.sql` | See below. |
-| `normalization_tests.sql` | See below. |
+| `normalisation_tests.sql` | See below. |
+| `minimal_basis_tests.sql` | See below. |
 | `load_csv.sql` | See below. |
 | `queries_stretch.sql` | Optional. Recommendations from a picked item, from viewing history and from friends, and the season and episode counts, which are derived by counting episodes. These use `GROUP BY`, `COUNT` and `NOT EXISTS`. |
 
@@ -130,7 +137,7 @@ leaves no child rows behind.
 Then run `integrity_audit.sql`: all 24 `violations` values must still be `0`, which shows the tests left no
 orphaned rows. Each audit row is a relational algebra constraint (every child value must appear in its parent), written as a `LEFT JOIN … IS NULL` query.
 
-### Testing the normal forms: `normalization_tests.sql`
+### Testing the normal forms: `normalisation_tests.sql`
 
 Eight tests show that the design has no redundancy or anomalies: a combined table is built only to compare
 against (9 rows against our 6), then insertion, deletion and update are tried on the real tables, a multi-vibe
@@ -138,11 +145,25 @@ search is checked for duplicates, and MySQL is shown to reject a duplicate email
 and rolls back at the end, so it changes no data. From the `sql` folder:
 
 ```bash
-mysql -t -u root -p < normalization_tests.sql
+mysql -t -u root -p < normalisation_tests.sql
 ```
 
 You should see **8 result tables, every one ending in `PASS`**. The reasoning behind them (keys, FDs, BCNF, 3NF
 and 4NF) is in `media-tracker/docs/normalisation.md`.
+
+### Testing the minimal basis: `minimal_basis_tests.sql`
+
+Checks the minimal basis of the FDs (28 FDs) worked out in `media-tracker/docs/minimal_basis.md`. Every FD
+holds in the data, every left side is a `PRIMARY KEY` or `UNIQUE` index, no left side can be made shorter
+(rows the schema accepts break every shorter version), and MySQL rejects rows that would break an FD. It runs
+inside a transaction and rolls back at the end, so it changes no data. From the `sql` folder:
+
+```bash
+mysql -t -u root -p < minimal_basis_tests.sql
+```
+
+You should see **23 rows, every one ending in `PASS`**: 13 for T1 (one per table that has FDs), then T2a–T2b,
+T3a–T3d, T4a–T4c and T5.
 
 ### Loading the CSV files: `load_csv.sql`
 
@@ -166,6 +187,7 @@ are at the top of the file. If you see *"Loading local data is disabled"*, one o
 - **18 tables in BCNF (so also 3NF) and 4NF.** People: `users`, `friends`, `user_groups`, `member_of`. Media: `media`, five child
   tables, two episode tables, `tag`, `has_tag`. Activity: `tracks`, `reviews`, `review_tags`, `recommends`.
   The full working (keys, functional dependencies, BCNF, 3NF and 4NF checks) is in `media-tracker/docs/normalisation.md`.
+  The FDs reduce to a minimal basis of 28 FDs whose left sides are all declared keys; see `media-tracker/docs/minimal_basis.md`.
 - **Inheritance (ISA).** `media` holds what every item has (title, year, summary). `books`,
   `tv_shows`, `movies`, `podcasts` (which have a `host`) and `songs` each hold only their own attributes and share
   `media_id` as primary key and foreign key to `media`. This avoids one wide table that is mostly NULL. Every media item is in exactly
