@@ -4,9 +4,8 @@ A MySQL database for finding books, TV shows, movies, podcasts and songs by **vi
 with vibes such as *cozy* or *melancholy*, track and review what they consume, follow friends and
 join groups that recommend media. Picking one item can suggest items of other types that share its vibes.
 
-This repository contains the conceptual design (ERD and a design audit), the normalisation and
-referential-integrity write-ups, the plan for the next sprint, and the relational implementation as SQL
-(DDL, constraints, sample data, data loading, queries, tests).
+This repository contains the conceptual design (ERD), the normalisation and minimal-basis write-ups, and the
+relational implementation as SQL (DDL, constraints, sample data, data loading, queries, tests).
 
 ![ERD](media-tracker/docs/erd/erd_full.png)
 
@@ -28,7 +27,7 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
     │   ├── media.csv, books.csv, movies.csv, songs.csv, has_tag.csv
     ├── docs/
     │   ├── erd/erd_full.png            final entity-relationship diagram (also as erd_full.svg)
-    │   ├── erd/erd_sprint1.png         the original Sprint 1 ERD, before the changes
+    │   ├── erd/erd_old.png             the original Sprint 1 ERD, before the changes
     │   ├── minimal_basis.md            minimal basis of the FDs (28 FDs), worked examples and 3NF synthesis
     │   └── normalisation.md            FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
     └── sql/
@@ -49,6 +48,8 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
         ├── sfw_tests.sql               Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
         ├── grouping_queries.sql        Sprint 2: Grouping & Aggregation: DISTINCT, GROUP BY + COUNT, ANY_VALUE, WHERE vs HAVING, MIN/MAX/SUM/AVG of durations, OLAP-style report
         ├── grouping_queries_tests.sql  Sprint 2: PASS/FAIL checks for grouping_queries.sql (27 checks, read-only)
+        ├── subquery_queries.sql        Sprint 3: Sub-queries: IN / NOT IN, EXISTS / NOT EXISTS, ALL, WITH, correlated sub-queries, sub-queries in the SELECT list, an aggregate over an aggregate
+        ├── subquery_tests.sql          Sprint 3: PASS/FAIL checks for subquery_queries.sql (25 checks, read-only)
         ├── alter_table.sql             ALTER TABLE demo: add a column, fill it, remove it
         ├── integrity_audit.sql         counts orphaned rows for every foreign key, and checks each media item is in one child table
         ├── check_tests.sql             24 statements that are meant to be rejected by the constraints
@@ -72,7 +73,7 @@ SOURCE run_all.sql;
 ```
 
 This creates the `media_tracker` database, builds the 18 tables and one view, adds the constraints and
-sample data, then runs the CRUD, query and ALTER TABLE demos and the integrity audit. It prints their results
+sample data, then runs the CRUD, query, ALTER TABLE, grouping and sub-query demos and the integrity audit. It prints their results
 and finishes with no errors. The last table it prints is the audit: every `violations` value must be `0`.
 It is safe to run again: it drops and rebuilds everything first (so it deletes the data in these tables).
 
@@ -87,8 +88,8 @@ WHERE CONSTRAINT_SCHEMA = 'media_tracker';     -- 20 rows
 
 **MySQL Workbench:** `SOURCE` is not supported there. Open each file and run it (lightning-bolt button)
 in this order: `setup` → `drop_all` → `schema_users_groups` → `schema_media` → `schema_activity` →
-`checks` → `seed_data`. After that, `crud_operations`, `queries`, `alter_table` and `integrity_audit` can be run
-in any order.
+`checks` → `seed_data`. After that, `crud_operations`, `queries`, `alter_table`, `grouping_queries`,
+`subquery_queries` and `integrity_audit` can be run in any order.
 
 ## What each script does
 
@@ -99,7 +100,9 @@ in any order.
 | `sfw_queries.sql` | Sprint 2, SELECT-FROM-WHERE. Each query lists its English question, output schema, source tables, predicates and expected result. Section 8 is an UPDATE that is rolled back. |
 | `sfw_tests.sql` | Runs every query in `sfw_queries.sql` and prints `PASS`/`FAIL` against the expected result. Runs in a transaction and rolls back, so it can be rerun. Run with `mysql -u root -p -t < sfw_tests.sql`. |
 | `grouping_queries.sql`| Grouping & Aggregation, read-only. Each query lists its English question, output schema, source tables, predicates and expected result: `DISTINCT` removing duplicates from a 3-constraint search, `GROUP BY` + `COUNT` ranking media by number of vibes, `ANY_VALUE` / `MIN` for columns not determined by the group, `WHERE` vs `HAVING`, and `MIN` / `MAX` / `SUM` / `AVG` / `COUNT` over durations and release years, and an OLAP-style report that groups by release era, media type and vibe. |
-| `grouping_queries_tests.sql`|	Runs every query in grouping_queries.sql and prints PASS/FAIL against the expected result. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_tests.sql`. |
+| `grouping_queries_tests.sql` | Runs every query in `grouping_queries.sql` and prints `PASS`/`FAIL` against the expected result. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_queries_tests.sql`. |
+| `subquery_queries.sql` | Sprint 3, sub-queries, read-only. Each query lists its English question, its relational algebra, why a sub-query is needed and the expected result: `IN` nested three levels deep, `NOT EXISTS` and the `NOT IN` / `NULL` trap, "for all" questions, `ALL`, correlated sub-queries, sub-queries in the `SELECT` list, an average of counts, and a recommendation built with `WITH`. |
+| `subquery_tests.sql` | Runs every query in `subquery_queries.sql` and prints `PASS`/`FAIL` against the expected result (25 checks). Read-only, so it can be rerun. Run with `mysql -t -u root -p < subquery_tests.sql`. |
 | `alter_table.sql` | `DESCRIBE reviews`, adds a nullable `rating` column with a 1–5 CHECK, fills it for one review, then drops it again. |
 | `integrity_audit.sql` | Read-only. One row per foreign key (22) plus two checks on the media child tables, each with a `violations` count that must be `0`. |
 | `check_tests.sql` | See below. |
@@ -171,21 +174,46 @@ T3a–T3d, T4a–T4c and T5.
 
 ### Testing grouping and aggregation: `grouping_queries_tests.sql`
 
-Five things are shown, each with a query and a test (all SELECTs, so no data changes):
+Six things are shown, each with a query and a test (all SELECTs, so no data changes):
 
-#	Shows	Test
-T1	`DISTINCT` removes duplicate tuples	A search with 3 constraints (vibe in a list, released before 2000, not a song) returns 5 rows without `DISTINCT` and 3 with it; `DISTINCT` equals `GROUP BY` on the same columns
-T2	`GROUP BY` partitions tuples	`COUNT` of vibes per media item: The Secret History is the most popular with 3; the 7 groups' counts add up to all 14 has_tag rows
-T3	A column that is not functionally dependent on the GROUP BY columns needs an aggregate.	Selecting m.title while grouping by tag_id fails with ERROR 1055; `ANY_VALUE(m.title)` returns exactly one title per vibe, and t.name (which tag_id determines) needs none
-T4	`WHERE` filters tuples before grouping, `HAVING filters` groups after it	Same result when the condition is on a `GROUP BY` column; different results on a non-grouped column; `COUNT(*)` works in `HAVING` and fails in `WHERE`
-T5	Aggregation functions `COUNT`, `MIN`, `MAX`, `SUM`, `AVG`, `ANY_VALUE`	Duration summary per media type (movies and songs), episode statistics per show, `HAVING AVG(duration) > 50`, `WHERE duration < 60` before `COUNT` and `SUM`, oldest and newest release year per type
-T6	OLAP-style report: `GROUP BY` over three dimensions with several measures	Items, total and average running time for every release era × media type × vibe (13 cells, newest era and longest total first); the cell counts add up to all 14 has_tag rows and to the plain per-vibe counts; books have no duration, so their SUM/AVG are NULL, not 0
+| # | Shows | Test |
+|---|---|---|
+| T1 | `DISTINCT` removes duplicate tuples | A search with 3 constraints (vibe in a list, released before 2000, not a song) returns 5 rows without `DISTINCT` and 3 with it; `DISTINCT` equals `GROUP BY` on the same columns |
+| T2 | `GROUP BY` partitions tuples | `COUNT` of vibes per media item: The Secret History is the most popular with 3; the 7 groups' counts add up to all 14 has_tag rows |
+| T3 | A column that is not functionally dependent on the GROUP BY columns needs an aggregate. | Selecting m.title while grouping by tag_id fails with ERROR 1055; `ANY_VALUE(m.title)` returns exactly one title per vibe, and t.name (which tag_id determines) needs none |
+| T4 | `WHERE` filters tuples before grouping, `HAVING` filters groups after it | Same result when the condition is on a `GROUP BY` column; different results on a non-grouped column; `COUNT(*)` works in `HAVING` and fails in `WHERE` |
+| T5 | Aggregation functions `COUNT`, `MIN`, `MAX`, `SUM`, `AVG`, `ANY_VALUE` | Duration summary per media type (movies and songs), episode statistics per show, `HAVING AVG(duration) > 50`, `WHERE duration < 60` before `COUNT` and `SUM`, oldest and newest release year per type |
+| T6 | OLAP-style report: `GROUP BY` over three dimensions with several measures | Items, total and average running time for every release era × media type × vibe (13 cells, newest era and longest total first); the cell counts add up to all 14 has_tag rows and to the plain per-vibe counts; books have no duration, so their SUM/AVG are NULL, not 0 |
 
 ```bash
-mysql -t -u root -p < grouping_tests.sql
+mysql -t -u root -p < grouping_queries_tests.sql
 ```
 
-You should see 23 result rows, every one ending in PASS. T3a and T4d are the statements MySQL must reject: they are run for real, a helper procedure catches the error, and the last column shows MySQL's error message. They PASS because that is the error expected, so no --force is needed.
+You should see 27 result rows, every one ending in PASS. T3a and T4d are the statements MySQL must reject: they are run for real, a helper procedure catches the error, and the last column shows MySQL's error message. They PASS because that is the error expected, so no --force is needed.
+
+### Testing sub-queries: `subquery_tests.sql`
+
+`subquery_queries.sql` answers questions about the data that need a query inside a query. Each is checked by a
+test, and all are SELECTs, so no data changes. Run `subquery_tests.sql` after `seed_data.sql` and **before**
+`load_csv.sql` (loading the CSV adds media, which changes the answers); `run_all.sql` already does this.
+
+| # | Shows | Test |
+|---|---|---|
+| T1 | `IN` / `NOT IN`: one sub-query feeds the condition of another | Media with a vibe muskan used in a review (three levels deep), minus what she already reviewed |
+| T2 | Negated existential conditions: `NOT EXISTS` | Media nobody tracks and users with no review; a `NOT IN` list containing one `NULL` returns no rows at all while `NOT EXISTS` does not; `LEFT JOIN … IS NULL` gives the same answer |
+| T3 | "For all" questions: a double `NOT EXISTS` | Groups that recommend every TV show (one) and every movie (none), checked against a `COUNT` version |
+| T4 | `ALL` | The most-used vibe (`>= ALL` the counts); items released before every movie (`< ALL`) |
+| T5 | Correlated sub-queries | Episodes longer than the average of their own show; media released after the average year of their own type; `EXISTS` inside `EXISTS` |
+| T6 | Sub-queries in the `SELECT` list | Finished items and reviews per user (users with none still appear); vibes and trackers per item; a plain join keeps only 3 of the 7 items |
+| T7 | Multiple aggregations | Average number of vibes per media type (an average of counts); the type with the highest average (`WITH` + `ALL`) |
+| T8 | `WITH`: named steps | Items finished by someone a user follows and not yet tracked by them: one for grace, none for muskan |
+| T9 | Nothing changed | users, media and has_tag keep their seed row counts |
+
+```bash
+mysql -t -u root -p < subquery_tests.sql
+```
+
+You should see **25 result rows, every one ending in `PASS`**.
 
 ### Loading the CSV files: `load_csv.sql`
 

@@ -120,7 +120,7 @@ GROUP BY t.tag_id
 ORDER BY t.tag_id;
  
 -- 3c) The failing version (commented out so run_all.sql keeps running; it is run for real,
---     with its error, by grouping_error_tests.sql):
+--     with its error, by grouping_queries_tests.sql):
 --
 -- SELECT t.tag_id, m.title, COUNT(*) AS items
 -- FROM tag AS t
@@ -195,7 +195,7 @@ ORDER BY t.name;
 -- 4e) A condition on a group (an aggregate): HAVING is the only option
 -- Question:   Which vibes are shared by at least 4 media items?
 -- Expected:   2 rows: melancholy 5, mystery 4
---             (WHERE COUNT(*) >= 4 is rejected: ERROR 1111, see grouping_error_tests.sql)
+--             (WHERE COUNT(*) >= 4 is rejected: ERROR 1111, see grouping_queries_tests.sql)
 SELECT t.name AS vibe, COUNT(*) AS items
 FROM tag AS t
 JOIN has_tag AS h ON h.tag_id = t.tag_id
