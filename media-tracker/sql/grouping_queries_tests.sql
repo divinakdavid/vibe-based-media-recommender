@@ -508,30 +508,35 @@ LEFT JOIN (
 ) AS im ON im.media_id = m.media_id
 GROUP BY e.era_no, e.era, mt.media_type, t.name;
  
--- T6a  The whole report, in report order (era newest first, then biggest total running time):
---      era|type|vibe:items/total minutes/average minutes
-SET @actual = (
-    SELECT GROUP_CONCAT(
+-- T6a  The whole report, cell by cell, in report order (era newest first, then biggest total
+--      running time). Each actual cell (era|type|vibe:items/total minutes/average minutes) must
+--      equal the expected cell at the same position. The result shows only how many cells
+--      matched, so the output stays one short row instead of two very long strings.
+SET @matching = (
+    SELECT COUNT(*) FROM (
+        SELECT ROW_NUMBER() OVER (ORDER BY era_no DESC, total_minutes DESC, media_type, vibe) AS pos,
                CONCAT(era, '|', media_type, '|', vibe, ':', items, '/',
-                      IFNULL(total_minutes, 'NULL'), '/', IFNULL(avg_minutes, 'NULL'))
-               ORDER BY era_no DESC, total_minutes DESC, media_type, vibe SEPARATOR ', ')
-    FROM olap_cells);
-SET @expected = CONCAT_WS(', ',
-    '2000 and later|podcast|mystery:1/139.00/139.00',
-    '2000 and later|movie|cozy:1/130.00/130.00',
-    '2000 and later|movie|mystery:1/130.00/130.00',
-    '1950-1999|tv_show|melancholy:1/188.00/188.00',
-    '1950-1999|tv_show|mystery:1/188.00/188.00',
-    '1950-1999|movie|dark academia:1/128.00/128.00',
-    '1950-1999|movie|melancholy:1/128.00/128.00',
-    '1950-1999|book|dark academia:1/NULL/NULL',
-    '1950-1999|book|melancholy:1/NULL/NULL',
-    '1950-1999|book|mystery:1/NULL/NULL',
-    'before 1950|song|melancholy:2/11.00/5.50',
-    'before 1950|song|dark academia:1/6.00/6.00',
-    'before 1950|song|cozy:1/5.00/5.00');
-SELECT 'T6a era x media type x vibe report (13 cells, report order)' AS test, @expected AS expected,
-       @actual AS actual, IF(@actual <=> @expected, 'PASS', 'FAIL') AS result;
+                      IFNULL(total_minutes, 'NULL'), '/', IFNULL(avg_minutes, 'NULL')) AS cell
+        FROM olap_cells
+    ) AS actual_cells
+    JOIN (
+        SELECT  1 AS pos, '2000 and later|podcast|mystery:1/139.00/139.00'    AS cell
+        UNION ALL SELECT  2, '2000 and later|movie|cozy:1/130.00/130.00'
+        UNION ALL SELECT  3, '2000 and later|movie|mystery:1/130.00/130.00'
+        UNION ALL SELECT  4, '1950-1999|tv_show|melancholy:1/188.00/188.00'
+        UNION ALL SELECT  5, '1950-1999|tv_show|mystery:1/188.00/188.00'
+        UNION ALL SELECT  6, '1950-1999|movie|dark academia:1/128.00/128.00'
+        UNION ALL SELECT  7, '1950-1999|movie|melancholy:1/128.00/128.00'
+        UNION ALL SELECT  8, '1950-1999|book|dark academia:1/NULL/NULL'
+        UNION ALL SELECT  9, '1950-1999|book|melancholy:1/NULL/NULL'
+        UNION ALL SELECT 10, '1950-1999|book|mystery:1/NULL/NULL'
+        UNION ALL SELECT 11, 'before 1950|song|melancholy:2/11.00/5.50'
+        UNION ALL SELECT 12, 'before 1950|song|dark academia:1/6.00/6.00'
+        UNION ALL SELECT 13, 'before 1950|song|cozy:1/5.00/5.00'
+    ) AS expected_cells
+      ON expected_cells.pos = actual_cells.pos AND expected_cells.cell = actual_cells.cell);
+SELECT 'T6a report: 13 cells match, in report order' AS test, 13 AS expected, @matching AS actual,
+       IF(@matching = 13 AND (SELECT COUNT(*) FROM olap_cells) = 13, 'PASS', 'FAIL') AS result;
  
 -- T6b  Every has_tag row lands in exactly one cell: 13 cells whose item counts add up to 14
 SET @cells = (SELECT COUNT(*)   FROM olap_cells);
