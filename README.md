@@ -47,8 +47,8 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
         ├── queries.sql                 basic joins, filtering and sorting
         ├── sfw_queries.sql             Sprint 2: SELECT-FROM-WHERE queries (complex conditions, constraints as queries, self-join, DML)
         ├── sfw_tests.sql               Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
-        ├── grouping_queries.sql        Grouping & Aggregation: DISTINCT, GROUP BY + COUNT, ANY_VALUE, WHERE vs HAVING, MIN/MAX/SUM/AVG of durations
-        ├── grouping_queries_tests.sql  PASS/FAIL checks for grouping_queries.sql (23 checks, read-only; also runs the statements MySQL must reject)
+        ├── grouping_queries.sql        Sprint 2: Grouping & Aggregation: DISTINCT, GROUP BY + COUNT, ANY_VALUE, WHERE vs HAVING, MIN/MAX/SUM/AVG of durations, OLAP-style report
+        ├── grouping_queries_tests.sql  Sprint 2: PASS/FAIL checks for grouping_queries.sql (27 checks, read-only)
         ├── alter_table.sql             ALTER TABLE demo: add a column, fill it, remove it
         ├── integrity_audit.sql         counts orphaned rows for every foreign key, and checks each media item is in one child table
         ├── check_tests.sql             24 statements that are meant to be rejected by the constraints
@@ -98,8 +98,8 @@ in any order.
 | `queries.sql` | Three read-only queries: *pick a vibe* (media of every type with a given tag), *group picks* (what each group recommends and who created it) and the *episodes* of a TV show. |
 | `sfw_queries.sql` | Sprint 2, SELECT-FROM-WHERE. Each query lists its English question, output schema, source tables, predicates and expected result. Section 8 is an UPDATE that is rolled back. |
 | `sfw_tests.sql` | Runs every query in `sfw_queries.sql` and prints `PASS`/`FAIL` against the expected result. Runs in a transaction and rolls back, so it can be rerun. Run with `mysql -u root -p -t < sfw_tests.sql`. |
-| `grouping_queries.sql`| Grouping & Aggregation, read-only. Each query lists its English question, output schema, source tables, predicates and expected result: DISTINCT removing duplicates from a 3-constraint search, GROUP BY + COUNT ranking media by number of vibes, ANY_VALUE / MIN for columns not determined by the group, WHERE vs HAVING, and MIN / MAX / SUM / AVG / COUNT over durations and release years. |
-| `grouping_queries_tests.sql`|	Runs every query in grouping_queries.sql and prints PASS/FAIL against the expected result. It also runs the statements MySQL must reject and checks the error. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_tests.sql`. |
+| `grouping_queries.sql`| Grouping & Aggregation, read-only. Each query lists its English question, output schema, source tables, predicates and expected result: `DISTINCT` removing duplicates from a 3-constraint search, `GROUP BY` + `COUNT` ranking media by number of vibes, `ANY_VALUE` / `MIN` for columns not determined by the group, `WHERE` vs `HAVING`, and `MIN` / `MAX` / `SUM` / `AVG` / `COUNT` over durations and release years, and an OLAP-style report that groups by release era, media type and vibe. |
+| `grouping_queries_tests.sql`|	Runs every query in grouping_queries.sql and prints PASS/FAIL against the expected result. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_tests.sql`. |
 | `alter_table.sql` | `DESCRIBE reviews`, adds a nullable `rating` column with a 1–5 CHECK, fills it for one review, then drops it again. |
 | `integrity_audit.sql` | Read-only. One row per foreign key (22) plus two checks on the media child tables, each with a `violations` count that must be `0`. |
 | `check_tests.sql` | See below. |
@@ -174,19 +174,18 @@ T3a–T3d, T4a–T4c and T5.
 Five things are shown, each with a query and a test (all SELECTs, so no data changes):
 
 #	Shows	Test
-T1	DISTINCT removes duplicate tuples	A search with 3 constraints (vibe in a list, released before 2000, not a song) returns 5 rows without DISTINCT and 3 with it; DISTINCT equals GROUP BY on the same columns
-T2	GROUP BY partitions tuples	COUNT of vibes per media item: The Secret History is the most popular with 3; the 7 groups' counts add up to all 14 has_tag rows
-T3	A column that is not functionally dependent on the GROUP BY columns needs an aggregate (ANY_VALUE, MIN ...)	Selecting m.title while grouping by tag_id fails with ERROR 1055; ANY_VALUE(m.title) returns exactly one title per vibe, and t.name (which tag_id determines) needs none
-T4	WHERE filters tuples before grouping, HAVING filters groups after it	Same result when the condition is on a GROUP BY column; different results on a non-grouped column; COUNT(*) works in HAVING and fails in WHERE (ERROR 1111)
-T5	Aggregation functions COUNT, MIN, MAX, SUM, AVG, ANY_VALUE	Duration summary per media type (movies and songs), episode statistics per show, HAVING AVG(duration) > 50, WHERE duration < 60 before COUNT and SUM, oldest and newest release year per type, and a check that AVG = SUM / COUNT
-
-MySQL spells the slides' ANY() as ANY_VALUE(). It returns an arbitrary value from the group, so use it only for values you do not care about (or that are the same in every row); use MIN/MAX when the answer must be the same every run (T3 tests both).
+T1	`DISTINCT` removes duplicate tuples	A search with 3 constraints (vibe in a list, released before 2000, not a song) returns 5 rows without `DISTINCT` and 3 with it; `DISTINCT` equals `GROUP BY` on the same columns
+T2	`GROUP BY` partitions tuples	`COUNT` of vibes per media item: The Secret History is the most popular with 3; the 7 groups' counts add up to all 14 has_tag rows
+T3	A column that is not functionally dependent on the GROUP BY columns needs an aggregate.	Selecting m.title while grouping by tag_id fails with ERROR 1055; `ANY_VALUE(m.title)` returns exactly one title per vibe, and t.name (which tag_id determines) needs none
+T4	`WHERE` filters tuples before grouping, `HAVING filters` groups after it	Same result when the condition is on a `GROUP BY` column; different results on a non-grouped column; `COUNT(*)` works in `HAVING` and fails in `WHERE`
+T5	Aggregation functions `COUNT`, `MIN`, `MAX`, `SUM`, `AVG`, `ANY_VALUE`	Duration summary per media type (movies and songs), episode statistics per show, `HAVING AVG(duration) > 50`, `WHERE duration < 60` before `COUNT` and `SUM`, oldest and newest release year per type
+T6	OLAP-style report: `GROUP BY` over three dimensions with several measures	Items, total and average running time for every release era × media type × vibe (13 cells, newest era and longest total first); the cell counts add up to all 14 has_tag rows and to the plain per-vibe counts; books have no duration, so their SUM/AVG are NULL, not 0
 
 ```bash
 mysql -t -u root -p < grouping_tests.sql
 ```
 
-You should see 23 result rows, every one ending in PASS. T3a and T4d are the statements MySQL must reject: they are run for real, a helper procedure catches the error, and the last column shows MySQL's error message (ERROR 1055 and ERROR 1111). They PASS because that is the error expected, so no --force is needed. ONLY_FULL_GROUP_BY (the T3 rule) is on by default in MySQL 8; the test file switches it on for the session anyway.
+You should see 23 result rows, every one ending in PASS. T3a and T4d are the statements MySQL must reject: they are run for real, a helper procedure catches the error, and the last column shows MySQL's error message. They PASS because that is the error expected, so no --force is needed.
 
 ### Loading the CSV files: `load_csv.sql`
 

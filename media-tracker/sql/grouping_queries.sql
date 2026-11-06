@@ -334,3 +334,66 @@ SELECT mt.media_type,
 FROM media_with_type AS mt
 GROUP BY mt.media_type
 ORDER BY mt.media_type;
+
+-- =====================================================================
+-- 6) OLAP-STYLE REPORT: GROUP BY OVER SEVERAL ATTRIBUTES AND MEASURES
+-- A classic OLAP report slices a fact table across attributes and reports measures (COUNT, SUM ...) 
+-- for every combination, sorted by the measures.
+-- This database has no star schema, so the pieces come from existing tables:
+--   fact table          has_tag: one row per (media item, vibe)
+--   dimension 1: era     derived from media.release_year (before 1950, 1950-1999, 2000 and later)
+--   dimension 2: type    media_with_type.media_type
+--   dimension 3: vibe    tag.name
+--   measures             COUNT(*) items, SUM and AVG of the item's running time in minutes
+-- The running time of an item is: a movie's or song's duration_minutes, or the SUM of a show's or
+-- podcast's episode durations. Books have no duration, so their running time is NULL; SUM and AVG
+-- ignore NULLs and give NULL when a group has no value at all (a book cell shows NULL, not 0).
+-- ɣ:          GROUP BY era, media_type, vibe: one output tuple per combination that has data
+-- ORDER BY:   newest era first, then the biggest total running time first (like year DESC,
+--             total_revenue DESC in a sales report); ties by type and vibe
+-- Expected:   13 rows (the item counts add up to the 14 rows of has_tag)
+--   2000 and later  podcast  mystery        1 item,  139.00 minutes, average 139.00
+--   2000 and later  movie    cozy           1 item,  130.00 minutes, average 130.00
+--   2000 and later  movie    mystery        1 item,  130.00 minutes, average 130.00
+--   1950-1999       tv_show  melancholy     1 item,  188.00 minutes, average 188.00
+--   1950-1999       tv_show  mystery        1 item,  188.00 minutes, average 188.00
+--   1950-1999       movie    dark academia  1 item,  128.00 minutes, average 128.00
+--   1950-1999       movie    melancholy     1 item,  128.00 minutes, average 128.00
+--   1950-1999       book     dark academia  1 item,  NULL,           NULL
+--   1950-1999       book     melancholy     1 item,  NULL,           NULL
+--   1950-1999       book     mystery        1 item,  NULL,           NULL
+--   before 1950     song     melancholy     2 items,  11.00 minutes, average 5.50  (Moonlight Sonata + Clair de Lune)
+--   before 1950     song     dark academia  1 item,    6.00 minutes, average 6.00
+--   before 1950     song     cozy           1 item,    5.00 minutes, average 5.00
+-- =====================================================================
+SELECT e.era,
+       mt.media_type,
+       t.name                    AS vibe,
+       COUNT(*)                  AS items,
+       SUM(im.minutes)           AS total_minutes,
+       ROUND(AVG(im.minutes), 2) AS avg_minutes
+FROM has_tag AS h
+JOIN media           AS m  ON m.media_id  = h.media_id
+JOIN media_with_type AS mt ON mt.media_id = m.media_id
+JOIN tag             AS t  ON t.tag_id    = h.tag_id
+JOIN (
+    -- era dimension; era_no is only there so the eras sort in time order, not alphabetically
+    SELECT media_id,
+           CASE WHEN release_year < 1950 THEN 1 WHEN release_year < 2000 THEN 2 ELSE 3 END AS era_no,
+           CASE WHEN release_year < 1950 THEN 'before 1950'
+                WHEN release_year < 2000 THEN '1950-1999'
+                ELSE '2000 and later' END AS era
+    FROM media
+) AS e ON e.media_id = m.media_id
+LEFT JOIN (
+    -- one running time per media item (LEFT JOIN: books have none and must stay in the report)
+    SELECT media_id, duration_minutes AS minutes FROM movies
+    UNION ALL
+    SELECT media_id, duration_minutes FROM songs
+    UNION ALL
+    SELECT media_id, SUM(duration_minutes) FROM tv_episodes GROUP BY media_id
+    UNION ALL
+    SELECT media_id, SUM(duration_minutes) FROM podcast_episodes GROUP BY media_id
+) AS im ON im.media_id = m.media_id
+GROUP BY e.era_no, e.era, mt.media_type, t.name
+ORDER BY e.era_no DESC, total_minutes DESC, mt.media_type, t.name;

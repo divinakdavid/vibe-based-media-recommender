@@ -7,6 +7,7 @@
 --       and the error MySQL gives without them
 --   T4  WHERE and HAVING: same result when the condition is on a GROUP BY column
 --   T5  Aggregation functions: MIN, MAX, SUM, AVG, COUNT, ANY_VALUE over durations and years
+--   T6  OLAP-style report: GROUP BY over three dimensions (era (derived), media type, vibe)
 --
 -- Everything is a SELECT, so the data is unchanged afterwards and the file can be run any
 -- number of times.
@@ -472,6 +473,99 @@ SET @total = (SELECT SUM(duration_minutes) FROM movies) + (SELECT SUM(duration_m
 SELECT 'T5g AVG = SUM/COUNT per group; group SUMs add up to the total' AS test, @total AS expected,
        @sum_of_sums AS actual,
        IF(@groups_ok = 2 AND @sum_of_sums = @total AND @total = 269, 'PASS', 'FAIL') AS result;
+
+       -- =====================================================================
+-- T6  OLAP-style report: GROUP BY over three dimensions (era, media type, vibe)
+--     The report is stored once in a temporary table so the checks below can look at it from
+--     different sides. (era_no only makes the eras sort in time order.)
+-- =====================================================================
+DROP TEMPORARY TABLE IF EXISTS olap_cells;
+CREATE TEMPORARY TABLE olap_cells AS
+SELECT e.era_no, e.era, mt.media_type, t.name AS vibe,
+       COUNT(*)                  AS items,
+       SUM(im.minutes)           AS total_minutes,
+       ROUND(AVG(im.minutes), 2) AS avg_minutes
+FROM has_tag AS h
+JOIN media           AS m  ON m.media_id  = h.media_id
+JOIN media_with_type AS mt ON mt.media_id = m.media_id
+JOIN tag             AS t  ON t.tag_id    = h.tag_id
+JOIN (
+    SELECT media_id,
+           CASE WHEN release_year < 1950 THEN 1 WHEN release_year < 2000 THEN 2 ELSE 3 END AS era_no,
+           CASE WHEN release_year < 1950 THEN 'before 1950'
+                WHEN release_year < 2000 THEN '1950-1999'
+                ELSE '2000 and later' END AS era
+    FROM media
+) AS e ON e.media_id = m.media_id
+LEFT JOIN (
+    SELECT media_id, duration_minutes AS minutes FROM movies
+    UNION ALL
+    SELECT media_id, duration_minutes FROM songs
+    UNION ALL
+    SELECT media_id, SUM(duration_minutes) FROM tv_episodes GROUP BY media_id
+    UNION ALL
+    SELECT media_id, SUM(duration_minutes) FROM podcast_episodes GROUP BY media_id
+) AS im ON im.media_id = m.media_id
+GROUP BY e.era_no, e.era, mt.media_type, t.name;
+ 
+-- T6a  The whole report, in report order (era newest first, then biggest total running time):
+--      era|type|vibe:items/total minutes/average minutes
+SET @actual = (
+    SELECT GROUP_CONCAT(
+               CONCAT(era, '|', media_type, '|', vibe, ':', items, '/',
+                      IFNULL(total_minutes, 'NULL'), '/', IFNULL(avg_minutes, 'NULL'))
+               ORDER BY era_no DESC, total_minutes DESC, media_type, vibe SEPARATOR ', ')
+    FROM olap_cells);
+SET @expected = CONCAT_WS(', ',
+    '2000 and later|podcast|mystery:1/139.00/139.00',
+    '2000 and later|movie|cozy:1/130.00/130.00',
+    '2000 and later|movie|mystery:1/130.00/130.00',
+    '1950-1999|tv_show|melancholy:1/188.00/188.00',
+    '1950-1999|tv_show|mystery:1/188.00/188.00',
+    '1950-1999|movie|dark academia:1/128.00/128.00',
+    '1950-1999|movie|melancholy:1/128.00/128.00',
+    '1950-1999|book|dark academia:1/NULL/NULL',
+    '1950-1999|book|melancholy:1/NULL/NULL',
+    '1950-1999|book|mystery:1/NULL/NULL',
+    'before 1950|song|melancholy:2/11.00/5.50',
+    'before 1950|song|dark academia:1/6.00/6.00',
+    'before 1950|song|cozy:1/5.00/5.00');
+SELECT 'T6a era x media type x vibe report (13 cells, report order)' AS test, @expected AS expected,
+       @actual AS actual, IF(@actual <=> @expected, 'PASS', 'FAIL') AS result;
+ 
+-- T6b  Every has_tag row lands in exactly one cell: 13 cells whose item counts add up to 14
+SET @cells = (SELECT COUNT(*)   FROM olap_cells);
+SET @items = (SELECT SUM(items) FROM olap_cells);
+SET @plain = (SELECT COUNT(*)   FROM has_tag);
+SELECT 'T6b cell item counts add up to all has_tag rows' AS test, @plain AS expected, @items AS actual,
+       IF(@cells = 13 AND @items = @plain AND @plain = 14, 'PASS', 'FAIL') AS result;
+ 
+-- T6c  The report agrees with a one-dimension query: adding the cells of each vibe gives the
+--      same item count as a plain GROUP BY on the vibe alone
+SET @from_cells = (
+    SELECT GROUP_CONCAT(CONCAT(vibe, '/', n) ORDER BY vibe SEPARATOR ', ')
+    FROM (SELECT vibe, SUM(items) AS n FROM olap_cells GROUP BY vibe) AS q);
+SET @from_plain = (
+    SELECT GROUP_CONCAT(CONCAT(vibe, '/', n) ORDER BY vibe SEPARATOR ', ')
+    FROM (SELECT t.name AS vibe, COUNT(*) AS n
+          FROM has_tag AS h JOIN tag AS t ON t.tag_id = h.tag_id
+          GROUP BY t.name) AS q);
+SELECT 'T6c cells add up to the plain per-vibe counts' AS test, @from_plain AS expected,
+       @from_cells AS actual,
+       IF(@from_cells <=> @from_plain AND @from_plain = 'cozy/2, dark academia/3, melancholy/5, mystery/4',
+          'PASS', 'FAIL') AS result;
+ 
+-- T6d  Books have no duration: their 3 cells have NULL (not 0) for SUM and AVG, and the
+--      cell with 2 songs shows SUM 11.00 and AVG 5.50
+SET @null_cells = (SELECT COUNT(*) FROM olap_cells
+                   WHERE media_type = 'book' AND total_minutes IS NULL AND avg_minutes IS NULL);
+SET @two_songs  = (SELECT CONCAT(items, '/', total_minutes, '/', avg_minutes) FROM olap_cells
+                   WHERE media_type = 'song' AND vibe = 'melancholy');
+SELECT 'T6d NULL for books, SUM/AVG for the 2-item cell' AS test, '3 and 2/11.00/5.50' AS expected,
+       CONCAT(@null_cells, ' and ', @two_songs) AS actual,
+       IF(@null_cells = 3 AND @two_songs = '2/11.00/5.50', 'PASS', 'FAIL') AS result;
+ 
+DROP TEMPORARY TABLE IF EXISTS olap_cells;
  
 -- ---------------------------------------------------------------------
 -- Clean up: drop the helper and put the SQL mode back.
