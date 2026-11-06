@@ -21,40 +21,42 @@ referential-integrity write-ups, the plan for the next sprint, and the relationa
 ```
 .
 ├── README.md
-├── .gitattributes                    keeps the CSV files on Unix line endings
+├── .gitattributes                      keeps the CSV files on Unix line endings
 ├── .gitignore
 └── media-tracker/
-    ├── data/                         CSV files read by load_csv.sql
+    ├── data/                           CSV files read by load_csv.sql
     │   ├── media.csv, books.csv, movies.csv, songs.csv, has_tag.csv
     ├── docs/
-    │   ├── erd/erd_full.png          final entity-relationship diagram (also as erd_full.svg)
-    │   ├── erd/erd_sprint1.png       the original Sprint 1 ERD, before the changes
-    │   ├── minimal_basis.md          minimal basis of the FDs (28 FDs), worked examples and 3NF synthesis
-    │   └── normalisation.md          FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
+    │   ├── erd/erd_full.png            final entity-relationship diagram (also as erd_full.svg)
+    │   ├── erd/erd_sprint1.png         the original Sprint 1 ERD, before the changes
+    │   ├── minimal_basis.md            minimal basis of the FDs (28 FDs), worked examples and 3NF synthesis
+    │   └── normalisation.md            FDs, keys and BCNF / 3NF / 4NF checks for all 18 tables
     └── sql/
-        ├── run_all.sql               builds the database, then runs the safe demos and the integrity audit
+        ├── run_all.sql                 builds the database, then runs the safe demos and the integrity audit
         │
-        ├── setup.sql                 creates the media_tracker database
-        ├── drop_all.sql              drops all tables (clean slate)
-        ├── schema_users_groups.sql   users, friends, user_groups, member_of
-        ├── schema_media.sql          media, books, tv_shows, movies, podcasts, songs, tv_episodes,
-        │                             podcast_episodes, tag, has_tag, and the view media_with_type
-        ├── schema_activity.sql       tracks, reviews, review_tags, recommends
-        ├── checks.sql                20 CHECK constraints
-        ├── seed_data.sql             sample data for every table
+        ├── setup.sql                   creates the media_tracker database
+        ├── drop_all.sql                drops all tables (clean slate)
+        ├── schema_users_groups.sql     users, friends, user_groups, member_of
+        ├── schema_media.sql            media, books, tv_shows, movies, podcasts, songs, tv_episodes,
+        │                               podcast_episodes, tag, has_tag, and the view media_with_type
+        ├── schema_activity.sql         tracks, reviews, review_tags, recommends
+        ├── checks.sql                  20 CHECK constraints
+        ├── seed_data.sql               sample data for every table
         │
-        ├── crud_operations.sql       INSERT / UPDATE / DELETE on every table
-        ├── queries.sql               basic joins, filtering and sorting
-        ├── sfw_queries.sql           Sprint 2: SELECT-FROM-WHERE queries (complex conditions, constraints as queries, self-join, DML)
-        ├── sfw_tests.sql             Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
-        ├── alter_table.sql           ALTER TABLE demo: add a column, fill it, remove it
-        ├── integrity_audit.sql       counts orphaned rows for every foreign key, and checks each media item is in one child table
-        ├── check_tests.sql           24 statements that are meant to be rejected by the constraints
-        ├── fk_tests.sql              tests every ON DELETE / ON UPDATE policy (RESTRICT refusals and CASCADEs)
-        ├── normalisation_tests.sql   8 tests showing the normal-form claims hold (no redundancy or anomalies)
-        ├── minimal_basis_tests.sql   23 checks that the minimal basis holds, is enforced and cannot be made smaller
-        ├── load_csv.sql              loads new rows from ../data/*.csv
-        └── queries_stretch.sql       optional recommendation queries (GROUP BY, COUNT, NOT EXISTS)
+        ├── crud_operations.sql         INSERT / UPDATE / DELETE on every table
+        ├── queries.sql                 basic joins, filtering and sorting
+        ├── sfw_queries.sql             Sprint 2: SELECT-FROM-WHERE queries (complex conditions, constraints as queries, self-join, DML)
+        ├── sfw_tests.sql               Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
+        ├── grouping_queries.sql        Grouping & Aggregation: DISTINCT, GROUP BY + COUNT, ANY_VALUE, WHERE vs HAVING, MIN/MAX/SUM/AVG of durations
+        ├── grouping_queries_tests.sql  PASS/FAIL checks for grouping_queries.sql (23 checks, read-only; also runs the statements MySQL must reject)
+        ├── alter_table.sql             ALTER TABLE demo: add a column, fill it, remove it
+        ├── integrity_audit.sql         counts orphaned rows for every foreign key, and checks each media item is in one child table
+        ├── check_tests.sql             24 statements that are meant to be rejected by the constraints
+        ├── fk_tests.sql                tests every ON DELETE / ON UPDATE policy (RESTRICT refusals and CASCADEs)
+        ├── normalisation_tests.sql     8 tests showing the normal-form claims hold (no redundancy or anomalies)
+        ├── minimal_basis_tests.sql     23 checks that the minimal basis holds, is enforced and cannot be made smaller
+        ├── load_csv.sql                loads new rows from ../data/*.csv
+        └── queries_stretch.sql         optional recommendation queries (GROUP BY, COUNT, NOT EXISTS)
 ```
 
 ## Quick start (about one minute)
@@ -96,6 +98,8 @@ in any order.
 | `queries.sql` | Three read-only queries: *pick a vibe* (media of every type with a given tag), *group picks* (what each group recommends and who created it) and the *episodes* of a TV show. |
 | `sfw_queries.sql` | Sprint 2, SELECT-FROM-WHERE. Each query lists its English question, output schema, source tables, predicates and expected result. Section 8 is an UPDATE that is rolled back. |
 | `sfw_tests.sql` | Runs every query in `sfw_queries.sql` and prints `PASS`/`FAIL` against the expected result. Runs in a transaction and rolls back, so it can be rerun. Run with `mysql -u root -p -t < sfw_tests.sql`. |
+| `grouping_queries.sql`| Grouping & Aggregation, read-only. Each query lists its English question, output schema, source tables, predicates and expected result: DISTINCT removing duplicates from a 3-constraint search, GROUP BY + COUNT ranking media by number of vibes, ANY_VALUE / MIN for columns not determined by the group, WHERE vs HAVING, and MIN / MAX / SUM / AVG / COUNT over durations and release years. |
+| `grouping_queries_tests.sql`|	Runs every query in grouping_queries.sql and prints PASS/FAIL against the expected result. It also runs the statements MySQL must reject and checks the error. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_tests.sql`. |
 | `alter_table.sql` | `DESCRIBE reviews`, adds a nullable `rating` column with a 1–5 CHECK, fills it for one review, then drops it again. |
 | `integrity_audit.sql` | Read-only. One row per foreign key (22) plus two checks on the media child tables, each with a `violations` count that must be `0`. |
 | `check_tests.sql` | See below. |
@@ -164,6 +168,25 @@ mysql -t -u root -p < minimal_basis_tests.sql
 
 You should see **23 rows, every one ending in `PASS`**: 13 for T1 (one per table that has FDs), then T2a–T2b,
 T3a–T3d, T4a–T4c and T5.
+
+### Testing grouping and aggregation: `grouping_queries_tests.sql`
+
+Five things are shown, each with a query and a test (all SELECTs, so no data changes):
+
+#	Shows	Test
+T1	DISTINCT removes duplicate tuples	A search with 3 constraints (vibe in a list, released before 2000, not a song) returns 5 rows without DISTINCT and 3 with it; DISTINCT equals GROUP BY on the same columns
+T2	GROUP BY partitions tuples	COUNT of vibes per media item: The Secret History is the most popular with 3; the 7 groups' counts add up to all 14 has_tag rows
+T3	A column that is not functionally dependent on the GROUP BY columns needs an aggregate (ANY_VALUE, MIN ...)	Selecting m.title while grouping by tag_id fails with ERROR 1055; ANY_VALUE(m.title) returns exactly one title per vibe, and t.name (which tag_id determines) needs none
+T4	WHERE filters tuples before grouping, HAVING filters groups after it	Same result when the condition is on a GROUP BY column; different results on a non-grouped column; COUNT(*) works in HAVING and fails in WHERE (ERROR 1111)
+T5	Aggregation functions COUNT, MIN, MAX, SUM, AVG, ANY_VALUE	Duration summary per media type (movies and songs), episode statistics per show, HAVING AVG(duration) > 50, WHERE duration < 60 before COUNT and SUM, oldest and newest release year per type, and a check that AVG = SUM / COUNT
+
+MySQL spells the slides' ANY() as ANY_VALUE(). It returns an arbitrary value from the group, so use it only for values you do not care about (or that are the same in every row); use MIN/MAX when the answer must be the same every run (T3 tests both).
+
+```bash
+mysql -t -u root -p < grouping_tests.sql
+```
+
+You should see 23 result rows, every one ending in PASS. T3a and T4d are the statements MySQL must reject: they are run for real, a helper procedure catches the error, and the last column shows MySQL's error message (ERROR 1055 and ERROR 1111). They PASS because that is the error expected, so no --force is needed. ONLY_FULL_GROUP_BY (the T3 rule) is on by default in MySQL 8; the test file switches it on for the session anyway.
 
 ### Loading the CSV files: `load_csv.sql`
 

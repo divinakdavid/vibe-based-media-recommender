@@ -13,6 +13,8 @@ SOURCE seed_data.sql;
 SOURCE crud_operations.sql;
 SOURCE queries.sql;
 SOURCE alter_table.sql;
+SOURCE grouping_queries.sql;
+SOURCE grouping_queries_tests.sql;
 SOURCE integrity_audit.sql;      -- 24 checks, every one must show 0 violations
 
 -- Not run here because they need extra setup. See the README:
