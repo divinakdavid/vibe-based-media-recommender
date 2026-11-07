@@ -50,6 +50,8 @@ relational implementation as SQL (DDL, constraints, sample data, data loading, q
         ├── grouping_queries_tests.sql  Sprint 2: PASS/FAIL checks for grouping_queries.sql (27 checks, read-only)
         ├── subquery_queries.sql        Sprint 2: Sub-queries: IN / NOT IN, EXISTS / NOT EXISTS, ALL, WITH, correlated sub-queries, sub-queries in the SELECT list, an aggregate over an aggregate
         ├── subquery_tests.sql          Sprint 2: PASS/FAIL checks for subquery_queries.sql (25 checks, read-only)
+        ├── advanced_queries.sql        Sprint 2: 10 queries: how foreign keys affect INSERT / UPDATE / DELETE, and how NULLs change query results
+        ├── advanced_tests.sql          Sprint 2: PASS/FAIL checks for advanced_queries.sql (22 checks, rolls itself back)
         ├── alter_table.sql             ALTER TABLE demo: add a column, fill it, remove it
         ├── integrity_audit.sql         counts orphaned rows for every foreign key, and checks each media item is in one child table
         ├── check_tests.sql             24 statements that are meant to be rejected by the constraints
@@ -73,7 +75,7 @@ SOURCE run_all.sql;
 ```
 
 This creates the `media_tracker` database, builds the 18 tables and one view, adds the constraints and
-sample data, then runs the CRUD, query, ALTER TABLE, grouping and sub-query demos and the integrity audit. It prints their results
+sample data, then runs the CRUD, query, ALTER TABLE, SELECT-FROM-WHERE, grouping, sub-query and advanced SQL demos with their tests, and the integrity audit. It prints their results
 and finishes with no errors. The last table it prints is the audit: every `violations` value must be `0`.
 It is safe to run again: it drops and rebuilds everything first (so it deletes the data in these tables).
 
@@ -88,8 +90,8 @@ WHERE CONSTRAINT_SCHEMA = 'media_tracker';     -- 20 rows
 
 **MySQL Workbench:** `SOURCE` is not supported there. Open each file and run it (lightning-bolt button)
 in this order: `setup` → `drop_all` → `schema_users_groups` → `schema_media` → `schema_activity` →
-`checks` → `seed_data`. After that, `crud_operations`, `queries`, `alter_table`, `grouping_queries`,
-`subquery_queries` and `integrity_audit` can be run in any order.
+`checks` → `seed_data`. After that, `crud_operations`, `queries`, `alter_table`, `sfw_queries`, `grouping_queries`,
+`subquery_queries`, `advanced_queries`, their `_tests` files and `integrity_audit` can be run in any order.
 
 ## What each script does
 
@@ -103,6 +105,8 @@ in this order: `setup` → `drop_all` → `schema_users_groups` → `schema_medi
 | `grouping_queries_tests.sql` | Runs every query in `grouping_queries.sql` and prints `PASS`/`FAIL` against the expected result. Read-only, so it can be rerun. Run with `mysql -t -u root -p < grouping_queries_tests.sql`. |
 | `subquery_queries.sql` | Sprint 3, sub-queries, read-only. Each query lists its English question, its relational algebra, why a sub-query is needed and the expected result: `IN` nested three levels deep, `NOT EXISTS` and the `NOT IN` / `NULL` trap, "for all" questions, `ALL`, correlated sub-queries, sub-queries in the `SELECT` list, an average of counts, and a recommendation built with `WITH`. |
 | `subquery_tests.sql` | Runs every query in `subquery_queries.sql` and prints `PASS`/`FAIL` against the expected result (25 checks). Read-only, so it can be rerun. Run with `mysql -t -u root -p < subquery_tests.sql`. |
+| `advanced_queries.sql` | Advanced SQL, 10 queries, each with its expected result. Q1–Q5: how foreign keys affect `INSERT`, `UPDATE` and `DELETE` (a missing parent, `CASCADE` two levels deep, `RESTRICT` refusing a delete and a key change). Q6–Q10: how `NULL` changes results (three-valued logic, joins on a column with NULLs, `NOT IN` vs `NOT EXISTS`, a condition in `ON` vs `WHERE` of a `LEFT JOIN`, aggregates skipping NULL). Everything is rolled back, so no data changes. |
+| `advanced_tests.sql` | Runs every query in `advanced_queries.sql` and prints `PASS`/`FAIL` against the expected result (22 checks). Rolls itself back, so it can be rerun. Run with `mysql -t -u root -p < advanced_tests.sql`. |
 | `alter_table.sql` | `DESCRIBE reviews`, adds a nullable `rating` column with a 1–5 CHECK, fills it for one review, then drops it again. |
 | `integrity_audit.sql` | Read-only. One row per foreign key (22) plus two checks on the media child tables, each with a `violations` count that must be `0`. |
 | `check_tests.sql` | See below. |
@@ -214,6 +218,33 @@ mysql -t -u root -p < subquery_tests.sql
 ```
 
 You should see **25 result rows, every one ending in `PASS`**.
+
+### Testing advanced SQL: `advanced_tests.sql`
+
+All the tests for `advanced_queries.sql` are in this one file. Run it after `seed_data.sql` and **before**
+`load_csv.sql` (loading the CSV adds media, which changes the answers); `run_all.sql` already does this.
+Statements that must fail are run by a helper procedure that catches the error and checks its number, so
+no `--force` is needed.
+
+| # | Shows | Test |
+|---|---|---|
+| T1 | `INSERT` into a child | A tracks row for a user who does not exist is refused (ERROR 1452), whatever the policy |
+| T2 | `UPDATE` of a child's foreign key | Changing a has_tag row to a tag that does not exist is refused (ERROR 1452) |
+| T3 | `DELETE` with `ON DELETE CASCADE` | Deleting muskan removes her memberships, friendships, tracks, reviews and, one level further, her review tags |
+| T4 | `DELETE` with `ON DELETE RESTRICT` | Deleting grace, a group creator, is refused (ERROR 1451) and none of her other rows change; after the group is handed over, the delete works |
+| T5 | `ON UPDATE RESTRICT` | Changing a tag id in use is refused; renaming the tag and deleting a has_tag row are allowed |
+| T6 | Three-valued logic | `year < 1950` and `NOT (year < 1950)` together find 10 of 12 items: the 2 NULL years are UNKNOWN in both |
+| T7 | Joins on a column with NULLs | Two NULL directors do not join with `=`; they do with `<=>` |
+| T8 | `NOT IN` vs `NOT EXISTS` | Over a list containing NULL, `NOT IN` returns nothing, `NOT EXISTS` returns 3 movies, `NOT IN` without the NULLs returns 2 |
+| T9 | Outer joins | A condition on the right table in `ON` keeps all 12 items; in `WHERE` it leaves 1 |
+| T10 | Aggregates and NULL | `AVG` of 94, 47, 47 and NULL is 62.67 (NULL skipped), not 47 |
+| T11 | Nothing changed | Every table is back to its seed row count |
+
+```bash
+mysql -t -u root -p < advanced_tests.sql
+```
+
+You should see **22 result rows, every one ending in `PASS`**.
 
 ### Loading the CSV files: `load_csv.sql`
 

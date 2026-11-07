@@ -26,7 +26,7 @@ USE media_tracker;
 --             podcast_episodes, not tv_episodes.
 -- =====================================================================
 SELECT m.title AS show_title, e.season_number, e.episode_number,
-       e.title AS episode, e.duration_minutes
+      e.title AS episode, e.duration_minutes
 FROM tv_episodes AS e
 JOIN media   AS m ON m.media_id = e.media_id
 JOIN has_tag AS h ON h.media_id = m.media_id
@@ -123,7 +123,7 @@ SELECT m.title AS song, s.artist, s.duration_minutes AS minutes
 FROM songs AS s
 JOIN media AS m ON m.media_id = s.media_id
 WHERE m.title LIKE '%Sonata%'
-   OR m.title LIKE 'Clair%'
+OR m.title LIKE 'Clair%'
 ORDER BY minutes DESC;
 
 -- 7d) LIMIT
