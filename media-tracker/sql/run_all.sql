@@ -19,7 +19,9 @@ SOURCE subquery_queries.sql;
 SOURCE subquery_tests.sql;
 SOURCE advanced_queries.sql;
 SOURCE advanced_tests.sql;
-SOURCE integrity_audit.sql;      -- 24 checks, every one must show 0 violations
+SOURCE integrity_audit.sql;      
+
+-- 24 checks, every one must show 0 violations
 
 -- Not run here because they need extra setup. See the README:
 --   check_tests.sql      (statements that are meant to fail; needs mysql --force)
