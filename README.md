@@ -48,8 +48,8 @@ relational implementation as SQL (DDL, constraints, sample data, data loading, q
         ├── sfw_tests.sql               Sprint 2: PASS/FAIL checks for sfw_queries.sql (rolls itself back)
         ├── grouping_queries.sql        Sprint 2: Grouping & Aggregation: DISTINCT, GROUP BY + COUNT, ANY_VALUE, WHERE vs HAVING, MIN/MAX/SUM/AVG of durations, OLAP-style report
         ├── grouping_queries_tests.sql  Sprint 2: PASS/FAIL checks for grouping_queries.sql (27 checks, read-only)
-        ├── subquery_queries.sql        Sprint 3: Sub-queries: IN / NOT IN, EXISTS / NOT EXISTS, ALL, WITH, correlated sub-queries, sub-queries in the SELECT list, an aggregate over an aggregate
-        ├── subquery_tests.sql          Sprint 3: PASS/FAIL checks for subquery_queries.sql (25 checks, read-only)
+        ├── subquery_queries.sql        Sprint 2: Sub-queries: IN / NOT IN, EXISTS / NOT EXISTS, ALL, WITH, correlated sub-queries, sub-queries in the SELECT list, an aggregate over an aggregate
+        ├── subquery_tests.sql          Sprint 2: PASS/FAIL checks for subquery_queries.sql (25 checks, read-only)
         ├── alter_table.sql             ALTER TABLE demo: add a column, fill it, remove it
         ├── integrity_audit.sql         counts orphaned rows for every foreign key, and checks each media item is in one child table
         ├── check_tests.sql             24 statements that are meant to be rejected by the constraints
